@@ -40,10 +40,35 @@
             transform: translateY(0);
         }
         #presentation-container {
+            cursor: default;
+        }
+        #presentation-container.laser-active {
             cursor: none;
         }
         #presentation-container.show-cursor {
             cursor: default;
+        }
+        #laser-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .menu {
+            animation: menuPop 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @keyframes menuPop {
+            from {
+                opacity: 0;
+                transform: scale(0.95) translateY(-8px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
         }
     </style>
 </head>
@@ -169,8 +194,29 @@
             <canvas id="presentation-canvas" style="display:block;"></canvas>
         </div>
         
-        <div id="fs-page-indicator" class="absolute bottom-6 left-6 bg-black/70 text-white px-4 py-2 rounded-lg text-sm font-medium backdrop-blur-sm pointer-events-none">
+        <canvas id="laser-canvas" style="display:none;"></canvas>
+        
+        <div id="fs-page-indicator" class="absolute bottom-6 left-6 bg-black/70 text-white px-4 py-2 rounded-lg text-sm font-medium backdrop-blur-sm pointer-events-auto flex items-center gap-3">
             <span id="fs-current-page">1</span> / <span id="fs-total-pages">--</span> ページ
+            
+            <button id="fs-menu-button" class="ml-2 p-1.5 hover:bg-white/20 rounded-lg transition-colors text-white/90 hover:text-white pointer-events-auto z-20">
+                <i class="fa-solid fa-ellipsis-vertical"></i>
+            </button>
+        </div>
+
+        <div id="fs-menu" class="hidden absolute bottom-20 left-6 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl py-1 w-56 text-white text-sm menu pointer-events-auto z-30">
+            <button id="laser-toggle" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-800 transition-colors text-left">
+                <i class="fa-solid fa-lightbulb w-4"></i>
+                <span id="laser-text">レーザー ポインタをオンにする</span>
+            </button>
+            <button id="exit-fullscreen" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-800 transition-colors text-left">
+                <i id="exit-fullscreen-icon" class="fa-solid fa-compress w-4"></i>
+                <span id="exit-fullscreen-text">全画面を終了</span>
+            </button>
+            <button id="exit-slideshow" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-800 transition-colors text-left">
+                <i class="fa-solid fa-xmark w-4"></i>
+                <span>スライドショーを終了</span>
+            </button>
         </div>
     </div>
 
@@ -193,7 +239,9 @@
             totalPages: 0,
             pdfName: '',
             isFullscreen: false,
-            renderedThumbnails: new Set()
+            isPresentationMode: false,
+            renderedThumbnails: new Set(),
+            laserPointerEnabled: false
         };
 
         const uploadScreen = document.getElementById('upload-screen');
@@ -210,6 +258,7 @@
         const mainCanvas = document.getElementById('main-canvas');
         const mainViewContainer = document.getElementById('main-view-container');
         const presentationCanvas = document.getElementById('presentation-canvas');
+        const laserCanvas = document.getElementById('laser-canvas');
         
         const btnBackToUpload = document.getElementById('btn-back-to-upload');
         const btnSlideshow = document.getElementById('btn-slideshow');
@@ -222,8 +271,18 @@
         const confirmOk = document.getElementById('confirm-ok');
         const confirmCancel = document.getElementById('confirm-cancel');
 
+        const fsMenuButton = document.getElementById('fs-menu-button');
+        const fsMenu = document.getElementById('fs-menu');
+        const laserToggle = document.getElementById('laser-toggle');
+        const laserText = document.getElementById('laser-text');
+        const exitFullscreenBtn = document.getElementById('exit-fullscreen');
+        const exitFullscreenIcon = document.getElementById('exit-fullscreen-icon');
+        const exitFullscreenText = document.getElementById('exit-fullscreen-text');
+        const exitSlideshowBtn = document.getElementById('exit-slideshow');
+
         let hideTimeout = null;
         let isInitialRender = false;
+        let isHoveringIndicator = false;
 
         const zoomState = {
             scale: 1,
@@ -242,6 +301,71 @@
         };
 
         const zoomWrapper = document.getElementById('presentation-zoom-wrapper');
+
+        let laserCtx = null;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+        let isLaserPaused = false;
+
+        function initLaserCanvas() {
+            laserCtx = laserCanvas.getContext('2d');
+        }
+
+        function drawLaserPointer(x, y) {
+            if (!laserCtx || !state.laserPointerEnabled || isLaserPaused) return;
+            
+            laserCanvas.width = window.innerWidth;
+            laserCanvas.height = window.innerHeight;
+            
+            laserCtx.clearRect(0, 0, laserCanvas.width, laserCanvas.height);
+            
+            laserCtx.shadowColor = '#ef4444';
+            laserCtx.shadowBlur = 30;
+            laserCtx.beginPath();
+            laserCtx.arc(x, y, 12, 0, Math.PI * 2);
+            laserCtx.fillStyle = 'rgba(239, 68, 68, 0.6)';
+            laserCtx.fill();
+            
+            laserCtx.shadowBlur = 10;
+            laserCtx.beginPath();
+            laserCtx.arc(x, y, 6, 0, Math.PI * 2);
+            laserCtx.fillStyle = '#ef4444';
+            laserCtx.fill();
+        }
+
+        function clearLaserPointer() {
+            if (laserCtx) {
+                laserCtx.clearRect(0, 0, laserCanvas.width, laserCanvas.height);
+            }
+        }
+
+        function toggleLaserPointer() {
+            state.laserPointerEnabled = !state.laserPointerEnabled;
+            
+            if (state.laserPointerEnabled) {
+                laserCanvas.style.display = 'block';
+                presentationContainer.classList.add('laser-active');
+                laserText.textContent = 'レーザー ポインタをオフにする';
+                laserToggle.classList.add('text-amber-400');
+            } else {
+                laserCanvas.style.display = 'none';
+                presentationContainer.classList.remove('laser-active');
+                clearLaserPointer();
+                laserText.textContent = 'レーザー ポインタをオンにする';
+                laserToggle.classList.remove('text-amber-400');
+            }
+        }
+
+        function pauseLaser() {
+            isLaserPaused = true;
+            clearLaserPointer();
+            presentationContainer.classList.add('show-cursor');
+        }
+
+        function resumeLaser() {
+            isLaserPaused = false;
+            presentationContainer.classList.remove('show-cursor');
+        }
 
         function applyZoomTransform() {
             const vw = window.innerWidth;
@@ -326,7 +450,6 @@
                 zoomState.lastPinchDist = dist;
                 const mid = getTouchMidpoint(e.touches);
 
-                // スケール変化分のオフセット補正（ピンチ中心基準）
                 const prevScale = zoomState.scale;
                 const newScale = Math.max(zoomState.minScale, Math.min(zoomState.maxScale, prevScale * delta));
                 if (newScale !== prevScale) {
@@ -339,7 +462,6 @@
                     zoomState.scale = newScale;
                 }
 
-                // 指の移動によるパン
                 zoomState.offsetX += mid.x - zoomState.lastPinchMid.x;
                 zoomState.offsetY += mid.y - zoomState.lastPinchMid.y;
                 zoomState.lastPinchMid = mid;
@@ -375,6 +497,68 @@
         });
         document.addEventListener('mouseup', () => { zoomState.isPanning = false; });
 
+        function toggleMenu() {
+            fsMenu.classList.toggle('hidden');
+        }
+
+        function closeMenu() {
+            fsMenu.classList.add('hidden');
+            if (!isHoveringIndicator) {
+                clearTimeout(hideTimeout);
+                hideTimeout = setTimeout(() => {
+                    fsPageIndicator.classList.remove('show');
+                }, 1500);
+            }
+        }
+
+        fsMenuButton.addEventListener('click', (e) => {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            toggleMenu();
+        });
+
+        laserToggle.addEventListener('click', (e) => {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            toggleLaserPointer();
+            closeMenu();
+        });
+
+        function updateExitFullscreenButton() {
+            if (state.isFullscreen) {
+                exitFullscreenIcon.className = 'fa-solid fa-compress w-4';
+                exitFullscreenText.textContent = '全画面を終了';
+            } else {
+                exitFullscreenIcon.className = 'fa-solid fa-expand w-4';
+                exitFullscreenText.textContent = '全画面表示に変更';
+            }
+        }
+
+        exitFullscreenBtn.addEventListener('click', (e) => {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            
+            if (state.isFullscreen) {
+                exitFullscreenOnly();
+            } else {
+                enterFullscreen();
+            }
+            closeMenu();
+        });
+
+        exitSlideshowBtn.addEventListener('click', (e) => {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            exitSlideshow();
+            closeMenu();
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!fsMenu.contains(e.target) && e.target !== fsMenuButton) {
+                closeMenu();
+            }
+        });
+
         dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('border-indigo-500', 'bg-slate-50/80'); });
         dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-indigo-500', 'bg-slate-50/80'));
         dropZone.addEventListener('drop', e => {
@@ -393,30 +577,74 @@
 
         btnSlideshow.addEventListener('click', startSlideshow);
 
-        presentationContainer.addEventListener('mousemove', () => {
+        presentationContainer.addEventListener('mousemove', (e) => {
             if (!zoomState.isPanning) showOverlay();
+            
+            if (state.laserPointerEnabled && !isLaserPaused) {
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                drawLaserPointer(e.clientX, e.clientY);
+            }
+        });
+
+        const interactiveElements = [fsPageIndicator, fsMenu];
+
+        interactiveElements.forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                if (state.laserPointerEnabled) {
+                    pauseLaser();
+                }
+            });
+            
+            el.addEventListener('mouseleave', () => {
+                if (state.laserPointerEnabled) {
+                    resumeLaser();
+                }
+            });
+        });
+
+        fsPageIndicator.addEventListener('mouseenter', () => {
+            isHoveringIndicator = true;
+            clearTimeout(hideTimeout);
+            fsPageIndicator.classList.add('show');
+        });
+
+        fsPageIndicator.addEventListener('mouseleave', () => {
+            isHoveringIndicator = false;
+            if (fsMenu.classList.contains('hidden')) {
+                hideTimeout = setTimeout(() => {
+                    fsPageIndicator.classList.remove('show');
+                }, 1500);
+            }
         });
 
         function showOverlay() {
             fsPageIndicator.classList.add('show');
-            presentationContainer.classList.add('show-cursor');
             clearTimeout(hideTimeout);
             hideTimeout = setTimeout(() => {
+                if (!fsMenu.classList.contains('hidden') || isHoveringIndicator) return;
                 fsPageIndicator.classList.remove('show');
-                presentationContainer.classList.remove('show-cursor');
             }, 1500);
         }
 
         let _panMoved = false;
         presentationContainer.addEventListener('mousedown', () => { _panMoved = false; }, true);
         document.addEventListener('mousemove', () => { if (zoomState.isPanning) _panMoved = true; }, true);
-        presentationContainer.addEventListener('click', e => {
-            if (_panMoved) { _panMoved = false; return; }
+
+        presentationContainer.addEventListener('click', (e) => {
+            if (fsMenuButton.contains(e.target) || fsMenu.contains(e.target)) {
+                return;
+            }
+            if (_panMoved) { 
+                _panMoved = false; 
+                return; 
+            }
             changePage(state.currentPage + 1, false);
         });
 
         document.addEventListener('keydown', e => {
             if (!state.pdfDoc) return;
+
             if (['ArrowRight','ArrowDown',' ','Enter'].includes(e.key)) {
                 changePage(state.currentPage + 1, true);
             }
@@ -424,17 +652,38 @@
                 changePage(state.currentPage - 1, true);
             }
             else if (e.key === 'Escape') {
-                if (state.isFullscreen) exitSlideshow();
-                else if (!confirmModal.classList.contains('hidden')) confirmModal.classList.add('hidden');
+                if (state.isPresentationMode) {
+                    exitSlideshow();
+                }
+                else if (!confirmModal.classList.contains('hidden')) {
+                    confirmModal.classList.add('hidden');
+                }
+            }
+            else if (e.key === 'F11') {
+                if (state.isPresentationMode) {
+                    e.preventDefault();
+                    exitSlideshow();
+                }
             }
         });
 
         document.addEventListener('fullscreenchange', () => {
+            const wasFullscreen = state.isFullscreen;
+            state.isFullscreen = !!document.fullscreenElement;
+            updateExitFullscreenButton();
+            
+            if (state.isPresentationMode && wasFullscreen && !state.isFullscreen) {
+                exitSlideshow();
+                return;
+            }
+            
+            if (state.isPresentationMode) {
+                resetZoom();
+                renderPresentationPage(state.currentPage);
+            }
+            
             if (document.fullscreenElement && isInitialRender) {
                 isInitialRender = false;
-                renderPresentationPage(state.currentPage);
-            } else if (!document.fullscreenElement && state.isFullscreen) {
-                exitSlideshow();
             }
         });
 
@@ -480,6 +729,8 @@
             state.totalPages = 0;
             state.pdfName = '';
             state.isFullscreen = false;
+            state.isPresentationMode = false;
+            state.laserPointerEnabled = false;
             state.renderedThumbnails.clear();
 
             if (document.fullscreenElement) {
@@ -490,6 +741,8 @@
             dropZone.classList.remove('border-indigo-500', 'bg-slate-50/80');
 
             presentationContainer.classList.add('hidden');
+            laserCanvas.style.display = 'none';
+            clearLaserPointer();
             confirmModal.classList.add('hidden');
             errorScreen.classList.add('hidden');
             viewerScreen.classList.add('hidden');
@@ -592,12 +845,11 @@
         function changePage(target, fromKeyboard = false) {
             if (!state.pdfDoc || target < 1 || target > state.totalPages) return;
             state.currentPage = target;
-            if (state.isFullscreen) {
+
+            if (state.isPresentationMode) {
                 resetZoom();
                 renderPresentationPage(target);
-                if (!fromKeyboard) {
-                    showOverlay();
-                }
+                if (!fromKeyboard) showOverlay();
             } else {
                 renderMainPage(target);
             }
@@ -629,9 +881,12 @@
 
         function startSlideshow() {
             if (!state.pdfDoc) return;
+            
+            state.isPresentationMode = true;
             state.isFullscreen = true;
             presentationContainer.classList.remove('hidden');
             isInitialRender = true;
+            initLaserCanvas();
 
             const elem = presentationContainer;
             if (elem.requestFullscreen) elem.requestFullscreen();
@@ -641,14 +896,48 @@
                 renderPresentationPage(state.currentPage);
                 isInitialRender = false;
             }
+            updateExitFullscreenButton();
+        }
+
+        function enterFullscreen() {
+            const elem = presentationContainer;
+            if (elem.requestFullscreen) elem.requestFullscreen();
+            else if (elem.webkitRequestFullscreen) elem.webkitRequestFullscreen();
+            else if (elem.msRequestFullscreen) elem.msRequestFullscreen();
+        }
+
+        function exitFullscreenOnly() {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            }
+            state.isFullscreen = false;
+            resetZoom();
+            renderPresentationPage(state.currentPage);
+            updateExitFullscreenButton();
         }
 
         function exitSlideshow() {
             state.isFullscreen = false;
+            state.isPresentationMode = false;
+            state.laserPointerEnabled = false;
+            
             resetZoom();
-            if (document.fullscreenElement) document.exitFullscreen();
             presentationContainer.classList.add('hidden');
-            renderMainPage(state.currentPage);
+            laserCanvas.style.display = 'none';
+            clearLaserPointer();
+
+            if (document.fullscreenElement) {
+                const exitPromise = document.exitFullscreen ? document.exitFullscreen() : Promise.resolve();
+                exitPromise.then(() => {
+                    setTimeout(() => {
+                        renderMainPage(state.currentPage);
+                    }, 50);
+                }).catch(() => {
+                    renderMainPage(state.currentPage);
+                });
+            } else {
+                renderMainPage(state.currentPage);
+            }
         }
 
         function showLoading(text) {
