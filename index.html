@@ -48,6 +48,10 @@
         #presentation-container.show-cursor {
             cursor: default;
         }
+        #presentation-container.hide-cursor,
+        #presentation-container.hide-cursor * {
+            cursor: none !important;
+        }
         #laser-canvas {
             position: absolute;
             top: 0;
@@ -507,6 +511,9 @@
                 clearTimeout(hideTimeout);
                 hideTimeout = setTimeout(() => {
                     fsPageIndicator.classList.remove('show');
+                    if (!state.laserPointerEnabled) {
+                        presentationContainer.classList.add('hide-cursor');
+                    }
                 }, 1500);
             }
         }
@@ -578,8 +585,8 @@
         btnSlideshow.addEventListener('click', startSlideshow);
 
         presentationContainer.addEventListener('mousemove', (e) => {
-            if (!zoomState.isPanning) showOverlay();
-            
+            showOverlay();
+
             if (state.laserPointerEnabled && !isLaserPaused) {
                 lastMouseX = e.clientX;
                 lastMouseY = e.clientY;
@@ -614,16 +621,23 @@
             if (fsMenu.classList.contains('hidden')) {
                 hideTimeout = setTimeout(() => {
                     fsPageIndicator.classList.remove('show');
+                    if (!state.laserPointerEnabled) {
+                        presentationContainer.classList.add('hide-cursor');
+                    }
                 }, 1500);
             }
         });
 
         function showOverlay() {
             fsPageIndicator.classList.add('show');
+            presentationContainer.classList.remove('hide-cursor');
             clearTimeout(hideTimeout);
             hideTimeout = setTimeout(() => {
                 if (!fsMenu.classList.contains('hidden') || isHoveringIndicator) return;
                 fsPageIndicator.classList.remove('show');
+                if (!state.laserPointerEnabled) {
+                    presentationContainer.classList.add('hide-cursor');
+                }
             }, 1500);
         }
 
@@ -923,6 +937,7 @@
             
             resetZoom();
             presentationContainer.classList.add('hidden');
+            presentationContainer.classList.remove('hide-cursor');
             laserCanvas.style.display = 'none';
             clearLaserPointer();
 
