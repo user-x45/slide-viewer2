@@ -74,6 +74,17 @@
                 transform: scale(1) translateY(0);
             }
         }
+        .link-overlay-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+        .link-overlay-container a {
+            position: absolute;
+            pointer-events: auto;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-200 h-screen max-h-screen flex flex-col overflow-hidden">
@@ -185,8 +196,9 @@
 
             <main id="main-view-container" class="flex-1 overflow-auto p-8 flex items-center justify-center custom-scrollbar">
                 <div class="max-w-full max-h-full flex items-center justify-center">
-                    <div class="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden relative transition-transform duration-200">
+                    <div id="main-canvas-wrapper" class="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden relative transition-transform duration-200">
                         <canvas id="main-canvas" class="max-w-full max-h-full block object-contain"></canvas>
+                        <div id="main-link-overlay" class="link-overlay-container"></div>
                     </div>
                 </div>
             </main>
@@ -195,14 +207,17 @@
 
     <div id="presentation-container" class="hidden fixed inset-0 bg-black z-50 overflow-hidden select-none" style="touch-action: none;">
         <div id="presentation-zoom-wrapper" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;transform-origin:center center;">
-            <canvas id="presentation-canvas" style="display:block;"></canvas>
+            <div style="position:relative;display:inline-block;">
+                <canvas id="presentation-canvas" style="display:block;"></canvas>
+                <div id="presentation-link-overlay" class="link-overlay-container"></div>
+            </div>
         </div>
-        
+
         <canvas id="laser-canvas" style="display:none;"></canvas>
-        
+
         <div id="fs-page-indicator" class="absolute bottom-6 left-6 bg-black/70 text-white px-4 py-2 rounded-lg text-sm font-medium backdrop-blur-sm pointer-events-auto flex items-center gap-3">
             <span id="fs-current-page">1</span> / <span id="fs-total-pages">--</span> ページ
-            
+
             <button id="fs-menu-button" class="ml-2 p-1.5 hover:bg-white/20 rounded-lg transition-colors text-white/90 hover:text-white pointer-events-auto z-20">
                 <i class="fa-solid fa-ellipsis-vertical"></i>
             </button>
@@ -245,7 +260,8 @@
             isFullscreen: false,
             isPresentationMode: false,
             renderedThumbnails: new Set(),
-            laserPointerEnabled: false
+            laserPointerEnabled: false,
+            exitingFullscreenForLink: false
         };
 
         const uploadScreen = document.getElementById('upload-screen');
@@ -263,7 +279,9 @@
         const mainViewContainer = document.getElementById('main-view-container');
         const presentationCanvas = document.getElementById('presentation-canvas');
         const laserCanvas = document.getElementById('laser-canvas');
-        
+        const mainLinkOverlay = document.getElementById('main-link-overlay');
+        const presentationLinkOverlay = document.getElementById('presentation-link-overlay');
+
         const btnBackToUpload = document.getElementById('btn-back-to-upload');
         const btnSlideshow = document.getElementById('btn-slideshow');
         const fsPageIndicator = document.getElementById('fs-page-indicator');
@@ -317,19 +335,19 @@
 
         function drawLaserPointer(x, y) {
             if (!laserCtx || !state.laserPointerEnabled || isLaserPaused) return;
-            
+
             laserCanvas.width = window.innerWidth;
             laserCanvas.height = window.innerHeight;
-            
+
             laserCtx.clearRect(0, 0, laserCanvas.width, laserCanvas.height);
-            
+
             laserCtx.shadowColor = '#ef4444';
             laserCtx.shadowBlur = 30;
             laserCtx.beginPath();
             laserCtx.arc(x, y, 12, 0, Math.PI * 2);
             laserCtx.fillStyle = 'rgba(239, 68, 68, 0.6)';
             laserCtx.fill();
-            
+
             laserCtx.shadowBlur = 10;
             laserCtx.beginPath();
             laserCtx.arc(x, y, 6, 0, Math.PI * 2);
@@ -345,7 +363,7 @@
 
         function toggleLaserPointer() {
             state.laserPointerEnabled = !state.laserPointerEnabled;
-            
+
             if (state.laserPointerEnabled) {
                 laserCanvas.style.display = 'block';
                 presentationContainer.classList.add('laser-active');
@@ -544,7 +562,7 @@
         exitFullscreenBtn.addEventListener('click', (e) => {
             e.stopImmediatePropagation();
             e.preventDefault();
-            
+
             if (state.isFullscreen) {
                 exitFullscreenOnly();
             } else {
@@ -602,7 +620,7 @@
                     pauseLaser();
                 }
             });
-            
+
             el.addEventListener('mouseleave', () => {
                 if (state.laserPointerEnabled) {
                     resumeLaser();
@@ -646,12 +664,12 @@
         document.addEventListener('mousemove', () => { if (zoomState.isPanning) _panMoved = true; }, true);
 
         presentationContainer.addEventListener('click', (e) => {
-            if (fsMenuButton.contains(e.target) || fsMenu.contains(e.target)) {
+            if (fsPageIndicator.contains(e.target) || fsMenu.contains(e.target)) {
                 return;
             }
-            if (_panMoved) { 
-                _panMoved = false; 
-                return; 
+            if (_panMoved) {
+                _panMoved = false;
+                return;
             }
             changePage(state.currentPage + 1, false);
         });
@@ -685,21 +703,94 @@
             const wasFullscreen = state.isFullscreen;
             state.isFullscreen = !!document.fullscreenElement;
             updateExitFullscreenButton();
-            
+
+            if (state.exitingFullscreenForLink) {
+                state.exitingFullscreenForLink = false;
+                return;
+            }
+
             if (state.isPresentationMode && wasFullscreen && !state.isFullscreen) {
                 exitSlideshow();
                 return;
             }
-            
+
             if (state.isPresentationMode) {
                 resetZoom();
                 renderPresentationPage(state.currentPage);
             }
-            
+
             if (document.fullscreenElement && isInitialRender) {
                 isInitialRender = false;
             }
         });
+
+        async function renderLinkOverlay(page, canvas, overlayEl, viewport, isPresentationMode) {
+            overlayEl.innerHTML = '';
+            overlayEl.style.width = canvas.style.width || canvas.width + 'px';
+            overlayEl.style.height = canvas.style.height || canvas.height + 'px';
+
+            let annotations;
+            try {
+                annotations = await page.getAnnotations();
+            } catch (_) {
+                return;
+            }
+
+            const dpr = window.devicePixelRatio || 1;
+            const displayW = parseFloat(canvas.style.width) || canvas.width / dpr;
+            const displayH = parseFloat(canvas.style.height) || canvas.height / dpr;
+            const pdfW = viewport.width / (viewport.scale);
+            const pdfH = viewport.height / (viewport.scale);
+            const scaleX = displayW / pdfW;
+            const scaleY = displayH / pdfH;
+
+            for (const ann of annotations) {
+                if (ann.subtype !== 'Link') continue;
+
+                let href = null;
+                if (ann.url) {
+                    href = ann.url;
+                } else if (ann.unsafeUrl) {
+                    href = ann.unsafeUrl;
+                } else if (ann.dest) {
+                    continue;
+                }
+                if (!href) continue;
+
+                const [x1, y1, x2, y2] = ann.rect;
+                const left = x1 * scaleX;
+                const top = (pdfH - y2) * scaleY;
+                const width = (x2 - x1) * scaleX;
+                const height = (y2 - y1) * scaleY;
+
+                const a = document.createElement('a');
+                a.href = href;
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                a.style.left = left + 'px';
+                a.style.top = top + 'px';
+                a.style.width = width + 'px';
+                a.style.height = height + 'px';
+
+                if (isPresentationMode) {
+                    a.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (state.isFullscreen) {
+                            state.exitingFullscreenForLink = true;
+                            document.exitFullscreen().catch(() => {
+                                state.exitingFullscreenForLink = false;
+                            });
+                        }
+                    });
+                } else {
+                    a.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                    });
+                }
+
+                overlayEl.appendChild(a);
+            }
+        }
 
         function handlePDFFile(file) {
             if (!file.name.toLowerCase().endsWith('.pdf')) {
@@ -765,6 +856,8 @@
             thumbnailList.innerHTML = '';
             mainCanvas.getContext('2d').clearRect(0, 0, mainCanvas.width, mainCanvas.height);
             presentationCanvas.getContext('2d').clearRect(0, 0, presentationCanvas.width, presentationCanvas.height);
+            mainLinkOverlay.innerHTML = '';
+            presentationLinkOverlay.innerHTML = '';
         }
 
         async function initViewer() {
@@ -785,7 +878,7 @@
             const canvas = document.createElement('canvas');
             canvas.id = `thumb-canvas-${pageNum}`;
             canvas.className = "w-full rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-md group-hover:scale-[1.02] transition-transform duration-200 block";
-            
+
             const label = document.createElement('span');
             label.className = "text-xs mt-1.5 text-slate-500 dark:text-slate-400 font-medium group-hover:text-slate-900 dark:group-hover:text-white transition-colors";
             label.textContent = pageNum;
@@ -838,6 +931,7 @@
 
                 currentPageNum.textContent = pageNum;
                 updateThumbnailActiveState(pageNum);
+                await renderLinkOverlay(page, mainCanvas, mainLinkOverlay, viewport, false);
             } catch (_) {}
         }
 
@@ -890,12 +984,13 @@
                 presentationRenderTask = page.render({canvasContext: ctx, viewport});
                 await presentationRenderTask.promise;
                 document.getElementById('fs-current-page').textContent = pageNum;
+                await renderLinkOverlay(page, presentationCanvas, presentationLinkOverlay, viewport, true);
             } catch (_) {}
         }
 
         function startSlideshow() {
             if (!state.pdfDoc) return;
-            
+
             state.isPresentationMode = true;
             state.isFullscreen = true;
             presentationContainer.classList.remove('hidden');
@@ -934,7 +1029,7 @@
             state.isFullscreen = false;
             state.isPresentationMode = false;
             state.laserPointerEnabled = false;
-            
+
             resetZoom();
             presentationContainer.classList.add('hidden');
             presentationContainer.classList.remove('hide-cursor');
