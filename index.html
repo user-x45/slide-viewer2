@@ -8,7 +8,9 @@
     <link rel="icon" type="image/png" href="favicon.png">
     <link rel="manifest" href="manifest.json">
     <title>PDF Slide Viewer</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.tailwindcss.com">
+
+</script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
 
@@ -245,6 +247,7 @@
     </div>
 
     <script type="module">
+
         import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.min.mjs';
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.worker.min.mjs';
 
@@ -706,6 +709,10 @@
 
             if (state.exitingFullscreenForLink) {
                 state.exitingFullscreenForLink = false;
+                if (state.isPresentationMode) {
+                    resetZoom();
+                    renderPresentationPage(state.currentPage);
+                }
                 return;
             }
 
@@ -1057,6 +1064,7 @@
         function hideLoading() {
             loadingOverlay.classList.add('hidden');
         }
-    </script>
+    
+</script>
 </body>
 </html>
