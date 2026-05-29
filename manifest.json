@@ -1,5 +1,6 @@
 {
   "name": "Slide Viewer",
+  "short_name": "Slide Viewer",
   "description": "PDF Slide Viewer - ブラウザ上でPDFファイルを美しいスライド形式で表示。全画面スライドショー、キーボード操作、サムネイル一覧、ダークモード対応。",
   "start_url": "/",
   "lang": "ja",
