@@ -998,6 +998,10 @@
 
             state.isPresentationMode = true;
             state.isFullscreen = true;
+            state.laserPointerEnabled = false;
+            laserCanvas.style.display = 'none';
+            laserText.textContent = 'レーザー ポインタをオンにする';
+            laserToggle.classList.remove('text-amber-400');
             presentationContainer.classList.remove('hidden');
             isInitialRender = true;
             initLaserCanvas();
@@ -1037,7 +1041,7 @@
 
             resetZoom();
             presentationContainer.classList.add('hidden');
-            presentationContainer.classList.remove('hide-cursor');
+            presentationContainer.classList.remove('hide-cursor', 'laser-active');
             laserCanvas.style.display = 'none';
             clearLaserPointer();
 
