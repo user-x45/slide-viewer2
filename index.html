@@ -85,6 +85,16 @@
             pointer-events: auto;
             cursor: pointer;
         }
+        #main-view-container {
+            touch-action: none;
+        }
+        #main-view-container.zoomed {
+            cursor: grab;
+            overflow: hidden;
+        }
+        #main-view-container.zoomed.panning {
+            cursor: grabbing;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-200 h-screen max-h-screen flex flex-col overflow-hidden">
@@ -194,12 +204,17 @@
                 <div id="thumbnail-list" class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-white dark:bg-slate-900"></div>
             </aside>
 
-            <main id="main-view-container" class="flex-1 overflow-auto p-8 flex items-center justify-center custom-scrollbar">
-                <div class="max-w-full max-h-full flex items-center justify-center">
-                    <div id="main-canvas-wrapper" class="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden relative transition-transform duration-200">
+            <main id="main-view-container" class="flex-1 p-8 flex items-center justify-center custom-scrollbar overflow-hidden relative">
+                <div id="main-zoom-wrapper" style="display:flex;align-items:center;justify-content:center;transform-origin:center center;will-change:transform;">
+                    <div id="main-canvas-wrapper" class="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden relative">
                         <canvas id="main-canvas" class="max-w-full max-h-full block object-contain"></canvas>
                         <div id="main-link-overlay" class="link-overlay-container"></div>
                     </div>
+                </div>
+                <div id="main-zoom-hint" class="absolute bottom-4 right-4 bg-black/50 text-white text-xs px-3 py-1.5 rounded-lg backdrop-blur-sm pointer-events-none opacity-0 transition-opacity duration-300 flex items-center gap-1.5">
+                    <i class="fa-solid fa-magnifying-glass-plus"></i>
+                    <span id="main-zoom-level">100%</span>
+                    <span class="text-white/60">· ダブルクリックでリセット</span>
                 </div>
             </main>
         </div>
@@ -324,6 +339,23 @@
         };
 
         const zoomWrapper = document.getElementById('presentation-zoom-wrapper');
+        const mainZoomWrapper = document.getElementById('main-zoom-wrapper');
+
+        const mainZoomState = {
+            scale: 1,
+            minScale: 1,
+            maxScale: 5,
+            offsetX: 0,
+            offsetY: 0,
+            isPinching: false,
+            lastPinchDist: 0,
+            lastPinchMid: { x: 0, y: 0 },
+            isPanning: false,
+            panStartX: 0,
+            panStartY: 0,
+            panStartOffsetX: 0,
+            panStartOffsetY: 0,
+        };
 
         let laserCtx = null;
         let lastMouseX = 0;
@@ -429,6 +461,181 @@
             applyZoomTransform();
         }
 
+        const mainZoomHint = document.getElementById('main-zoom-hint');
+        const mainZoomLevel = document.getElementById('main-zoom-level');
+        let mainZoomHintTimeout = null;
+
+        function applyMainZoomTransform() {
+            const rect = mainViewContainer.getBoundingClientRect();
+            const cw = mainZoomWrapper.scrollWidth * mainZoomState.scale;
+            const ch = mainZoomWrapper.scrollHeight * mainZoomState.scale;
+            const maxOffsetX = Math.max(0, (cw - rect.width) / 2);
+            const maxOffsetY = Math.max(0, (ch - rect.height) / 2);
+            mainZoomState.offsetX = Math.max(-maxOffsetX, Math.min(maxOffsetX, mainZoomState.offsetX));
+            mainZoomState.offsetY = Math.max(-maxOffsetY, Math.min(maxOffsetY, mainZoomState.offsetY));
+            mainZoomWrapper.style.transform =
+                `translate(${mainZoomState.offsetX}px, ${mainZoomState.offsetY}px) scale(${mainZoomState.scale})`;
+            mainZoomLevel.textContent = Math.round(mainZoomState.scale * 100) + '%';
+            mainZoomHint.style.opacity = '1';
+            clearTimeout(mainZoomHintTimeout);
+            mainZoomHintTimeout = setTimeout(() => { mainZoomHint.style.opacity = '0'; }, 1500);
+        }
+
+        function resetMainZoom(showHint = false) {
+            mainZoomState.scale = 1;
+            mainZoomState.offsetX = 0;
+            mainZoomState.offsetY = 0;
+            mainZoomWrapper.style.transform = '';
+            mainViewContainer.classList.remove('zoomed', 'panning');
+            clearTimeout(mainZoomHintTimeout);
+            if (showHint) {
+                mainZoomLevel.textContent = '100%';
+                mainZoomHint.style.opacity = '1';
+                mainZoomHintTimeout = setTimeout(() => { mainZoomHint.style.opacity = '0'; }, 1500);
+            } else {
+                mainZoomHint.style.opacity = '0';
+            }
+        }
+
+        function mainZoomAt(delta, clientX, clientY) {
+            const prevScale = mainZoomState.scale;
+            const newScale = Math.max(mainZoomState.minScale, Math.min(mainZoomState.maxScale, prevScale * delta));
+            if (newScale === prevScale) return;
+            const ratio = newScale / prevScale;
+            const rect = mainViewContainer.getBoundingClientRect();
+            const cx = clientX - (rect.left + rect.width / 2);
+            const cy = clientY - (rect.top + rect.height / 2);
+            mainZoomState.offsetX = cx + (mainZoomState.offsetX - cx) * ratio;
+            mainZoomState.offsetY = cy + (mainZoomState.offsetY - cy) * ratio;
+            mainZoomState.scale = newScale;
+            applyMainZoomTransform();
+            if (mainZoomState.scale > 1) {
+                mainViewContainer.classList.add('zoomed');
+            } else {
+                mainViewContainer.classList.remove('zoomed', 'panning');
+            }
+        }
+
+        mainViewContainer.addEventListener('wheel', e => {
+            if (!e.ctrlKey) return;
+            e.preventDefault();
+            const delta = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+            mainZoomAt(delta, e.clientX, e.clientY);
+        }, { passive: false });
+
+        mainViewContainer.addEventListener('dblclick', e => {
+            if (e.target.closest('a')) return;
+            if (mainZoomState.scale > 1) {
+                resetMainZoom(true);
+            } else {
+                mainZoomAt(2, e.clientX, e.clientY);
+            }
+        });
+
+        mainViewContainer.addEventListener('touchstart', e => {
+            if (state.isPresentationMode) return;
+            e.preventDefault();
+            if (e.touches.length === 2) {
+                mainZoomState.isPinching = true;
+                mainZoomState.isPanning = false;
+                mainZoomState.lastPinchDist = getTouchDist(e.touches);
+                mainZoomState.lastPinchMid = getTouchMidpoint(e.touches);
+            } else if (e.touches.length === 1) {
+                mainZoomState.isPinching = false;
+                if (mainZoomState.scale > 1) {
+                    mainZoomState.isPanning = true;
+                    mainZoomState.panStartX = e.touches[0].clientX;
+                    mainZoomState.panStartY = e.touches[0].clientY;
+                    mainZoomState.panStartOffsetX = mainZoomState.offsetX;
+                    mainZoomState.panStartOffsetY = mainZoomState.offsetY;
+                } else {
+                    mainZoomState.isPanning = false;
+                }
+            }
+        }, { passive: false });
+
+        mainViewContainer.addEventListener('touchmove', e => {
+            if (state.isPresentationMode) return;
+            e.preventDefault();
+            if (e.touches.length === 2) {
+                if (!mainZoomState.isPinching) {
+                    mainZoomState.isPinching = true;
+                    mainZoomState.lastPinchDist = getTouchDist(e.touches);
+                    mainZoomState.lastPinchMid = getTouchMidpoint(e.touches);
+                    return;
+                }
+                const dist = getTouchDist(e.touches);
+                const mid = getTouchMidpoint(e.touches);
+                const delta = dist / mainZoomState.lastPinchDist;
+                const prevScale = mainZoomState.scale;
+                const newScale = Math.max(mainZoomState.minScale, Math.min(mainZoomState.maxScale, prevScale * delta));
+                if (newScale !== prevScale) {
+                    const ratio = newScale / prevScale;
+                    const rect = mainViewContainer.getBoundingClientRect();
+                    const cx = mid.x - (rect.left + rect.width / 2);
+                    const cy = mid.y - (rect.top + rect.height / 2);
+                    mainZoomState.offsetX = cx + (mainZoomState.offsetX - cx) * ratio;
+                    mainZoomState.offsetY = cy + (mainZoomState.offsetY - cy) * ratio;
+                    mainZoomState.scale = newScale;
+                }
+                mainZoomState.offsetX += mid.x - mainZoomState.lastPinchMid.x;
+                mainZoomState.offsetY += mid.y - mainZoomState.lastPinchMid.y;
+                mainZoomState.lastPinchDist = dist;
+                mainZoomState.lastPinchMid = mid;
+                applyMainZoomTransform();
+                if (mainZoomState.scale > 1) {
+                    mainViewContainer.classList.add('zoomed');
+                } else {
+                    mainViewContainer.classList.remove('zoomed', 'panning');
+                }
+            } else if (e.touches.length === 1 && mainZoomState.isPanning && mainZoomState.scale > 1) {
+                mainZoomState.offsetX = mainZoomState.panStartOffsetX + (e.touches[0].clientX - mainZoomState.panStartX);
+                mainZoomState.offsetY = mainZoomState.panStartOffsetY + (e.touches[0].clientY - mainZoomState.panStartY);
+                applyMainZoomTransform();
+            }
+        }, { passive: false });
+
+        mainViewContainer.addEventListener('touchend', e => {
+            if (state.isPresentationMode) return;
+            if (e.touches.length < 2) mainZoomState.isPinching = false;
+            if (e.touches.length === 0) {
+                mainZoomState.isPanning = false;
+                if (mainZoomState.scale <= 1) resetMainZoom();
+            }
+            if (e.touches.length === 1 && mainZoomState.scale > 1) {
+                mainZoomState.isPanning = true;
+                mainZoomState.panStartX = e.touches[0].clientX;
+                mainZoomState.panStartY = e.touches[0].clientY;
+                mainZoomState.panStartOffsetX = mainZoomState.offsetX;
+                mainZoomState.panStartOffsetY = mainZoomState.offsetY;
+            }
+        }, { passive: false });
+
+        mainViewContainer.addEventListener('mousedown', e => {
+            if (state.isPresentationMode || mainZoomState.scale <= 1) return;
+            mainZoomState.isPanning = true;
+            mainZoomState.panStartX = e.clientX;
+            mainZoomState.panStartY = e.clientY;
+            mainZoomState.panStartOffsetX = mainZoomState.offsetX;
+            mainZoomState.panStartOffsetY = mainZoomState.offsetY;
+            mainViewContainer.classList.add('panning');
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', e => {
+            if (!mainZoomState.isPanning || state.isPresentationMode) return;
+            mainZoomState.offsetX = mainZoomState.panStartOffsetX + (e.clientX - mainZoomState.panStartX);
+            mainZoomState.offsetY = mainZoomState.panStartOffsetY + (e.clientY - mainZoomState.panStartY);
+            applyMainZoomTransform();
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (mainZoomState.isPanning) {
+                mainZoomState.isPanning = false;
+                mainViewContainer.classList.remove('panning');
+            }
+        });
+
         presentationContainer.addEventListener('wheel', e => {
             if (!e.ctrlKey) return;
             e.preventDefault();
@@ -513,10 +720,11 @@
             e.preventDefault();
         });
         document.addEventListener('mousemove', e => {
-            if (!zoomState.isPanning || !state.isFullscreen) return;
-            zoomState.offsetX = zoomState.panStartOffsetX + (e.clientX - zoomState.panStartX);
-            zoomState.offsetY = zoomState.panStartOffsetY + (e.clientY - zoomState.panStartY);
-            applyZoomTransform();
+            if (zoomState.isPanning && state.isFullscreen) {
+                zoomState.offsetX = zoomState.panStartOffsetX + (e.clientX - zoomState.panStartX);
+                zoomState.offsetY = zoomState.panStartOffsetY + (e.clientY - zoomState.panStartY);
+                applyZoomTransform();
+            }
         });
         document.addEventListener('mouseup', () => { zoomState.isPanning = false; });
 
@@ -997,6 +1205,7 @@
                 renderPresentationPage(target);
                 if (!fromKeyboard) showOverlay();
             } else {
+                resetMainZoom();
                 renderMainPage(target);
             }
         }
