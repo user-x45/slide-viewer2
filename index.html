@@ -729,6 +729,25 @@
             }
         });
 
+        async function resolveDestToPageNum(dest) {
+            try {
+                let resolvedDest = dest;
+                if (typeof dest === 'string') {
+                    resolvedDest = await state.pdfDoc.getDestination(dest);
+                }
+                if (!resolvedDest) return null;
+                const ref = resolvedDest[0];
+                if (ref && typeof ref === 'object' && ref.num !== undefined) {
+                    const pageIndex = await state.pdfDoc.getPageIndex(ref);
+                    return pageIndex + 1;
+                }
+                if (typeof ref === 'number') {
+                    return ref + 1;
+                }
+            } catch (_) {}
+            return null;
+        }
+
         async function renderLinkOverlay(page, canvas, overlayEl, viewport, isPresentationMode) {
             overlayEl.innerHTML = '';
             overlayEl.style.width = canvas.style.width || canvas.width + 'px';
@@ -753,14 +772,18 @@
                 if (ann.subtype !== 'Link') continue;
 
                 let href = null;
+                let destPageNum = null;
+
                 if (ann.url) {
                     href = ann.url;
                 } else if (ann.unsafeUrl) {
                     href = ann.unsafeUrl;
                 } else if (ann.dest) {
-                    continue;
+                    destPageNum = await resolveDestToPageNum(ann.dest);
+                    if (!destPageNum) continue;
                 }
-                if (!href) continue;
+
+                if (!href && !destPageNum) continue;
 
                 const [x1, y1, x2, y2] = ann.rect;
                 const left = x1 * scaleX;
@@ -769,28 +792,38 @@
                 const height = (y2 - y1) * scaleY;
 
                 const a = document.createElement('a');
-                a.href = href;
-                a.target = '_blank';
-                a.rel = 'noopener noreferrer';
                 a.style.left = left + 'px';
                 a.style.top = top + 'px';
                 a.style.width = width + 'px';
                 a.style.height = height + 'px';
 
-                if (isPresentationMode) {
+                if (destPageNum) {
+                    a.href = '#';
                     a.addEventListener('click', (e) => {
+                        e.preventDefault();
                         e.stopPropagation();
-                        if (state.isFullscreen) {
-                            state.exitingFullscreenForLink = true;
-                            document.exitFullscreen().catch(() => {
-                                state.exitingFullscreenForLink = false;
-                            });
-                        }
+                        changePage(destPageNum, false);
                     });
                 } else {
-                    a.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                    });
+                    a.href = href;
+                    a.target = '_blank';
+                    a.rel = 'noopener noreferrer';
+
+                    if (isPresentationMode) {
+                        a.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            if (state.isFullscreen) {
+                                state.exitingFullscreenForLink = true;
+                                document.exitFullscreen().catch(() => {
+                                    state.exitingFullscreenForLink = false;
+                                });
+                            }
+                        });
+                    } else {
+                        a.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                        });
+                    }
                 }
 
                 overlayEl.appendChild(a);
