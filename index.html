@@ -818,6 +818,12 @@
             toggleMenu();
         });
 
+        fsMenuButton.addEventListener('touchend', (e) => {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            toggleMenu();
+        });
+
         laserToggle.addEventListener('click', (e) => {
             e.stopImmediatePropagation();
             e.preventDefault();
@@ -825,7 +831,20 @@
             closeMenu();
         });
 
+        laserToggle.addEventListener('touchend', (e) => {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            toggleLaserPointer();
+            closeMenu();
+        });
+
         function updateExitFullscreenButton() {
+            const supportsFullscreen = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen || document.documentElement.msRequestFullscreen);
+            if (!supportsFullscreen) {
+                exitFullscreenBtn.classList.add('hidden');
+                return;
+            }
+            exitFullscreenBtn.classList.remove('hidden');
             if (state.isFullscreen) {
                 exitFullscreenIcon.className = 'fa-solid fa-compress w-4';
                 exitFullscreenText.textContent = '全画面を終了';
@@ -847,7 +866,25 @@
             closeMenu();
         });
 
+        exitFullscreenBtn.addEventListener('touchend', (e) => {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            if (state.isFullscreen) {
+                exitFullscreenOnly();
+            } else {
+                enterFullscreen();
+            }
+            closeMenu();
+        });
+
         exitSlideshowBtn.addEventListener('click', (e) => {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            exitSlideshow();
+            closeMenu();
+        });
+
+        exitSlideshowBtn.addEventListener('touchend', (e) => {
             e.stopImmediatePropagation();
             e.preventDefault();
             exitSlideshow();
@@ -1342,6 +1379,12 @@
             laserCanvas.style.display = 'none';
             laserText.textContent = 'レーザー ポインタをオンにする';
             laserToggle.classList.remove('text-amber-400');
+            const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
+            if (isTouchDevice) {
+                laserToggle.classList.add('hidden');
+            } else {
+                laserToggle.classList.remove('hidden');
+            }
             presentationContainer.classList.remove('hidden');
             isInitialRender = true;
             initLaserCanvas();
