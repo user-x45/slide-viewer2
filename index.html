@@ -769,7 +769,11 @@
                         link.click();
                         e.preventDefault();
                     } else if (!_touchMoved && !fsPageIndicator.contains(el) && !fsMenu.contains(el)) {
-                        changePage(state.currentPage + 1, false);
+                        if (state.currentPage >= state.totalPages) {
+                            showOverlay();
+                        } else {
+                            changePage(state.currentPage + 1, false);
+                        }
                         e.preventDefault();
                     }
                 }
@@ -821,6 +825,7 @@
         fsMenuButton.addEventListener('touchend', (e) => {
             e.stopImmediatePropagation();
             e.preventDefault();
+            showOverlay();
             toggleMenu();
         });
 
