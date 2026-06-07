@@ -690,6 +690,10 @@
             };
         }
 
+        let _touchStartX = 0;
+        let _touchStartY = 0;
+        let _touchMoved = false;
+
         presentationContainer.addEventListener('touchstart', e => {
             if (e.touches.length === 2) {
                 zoomState.isPinching = true;
@@ -697,12 +701,17 @@
                 zoomState.lastPinchDist = getTouchDist(e.touches);
                 zoomState.lastPinchMid = getTouchMidpoint(e.touches);
                 e.preventDefault();
-            } else if (e.touches.length === 1 && zoomState.scale > 1) {
-                zoomState.isPanning = true;
-                zoomState.panStartX = e.touches[0].clientX;
-                zoomState.panStartY = e.touches[0].clientY;
-                zoomState.panStartOffsetX = zoomState.offsetX;
-                zoomState.panStartOffsetY = zoomState.offsetY;
+            } else if (e.touches.length === 1) {
+                _touchStartX = e.touches[0].clientX;
+                _touchStartY = e.touches[0].clientY;
+                _touchMoved = false;
+                if (zoomState.scale > 1) {
+                    zoomState.isPanning = true;
+                    zoomState.panStartX = e.touches[0].clientX;
+                    zoomState.panStartY = e.touches[0].clientY;
+                    zoomState.panStartOffsetX = zoomState.offsetX;
+                    zoomState.panStartOffsetY = zoomState.offsetY;
+                }
                 e.preventDefault();
             }
         }, { passive: false });
@@ -734,15 +743,23 @@
                 applyZoomTransform();
             } else if (zoomState.isPanning && e.touches.length === 1 && zoomState.scale > 1) {
                 e.preventDefault();
-                zoomState.offsetX = zoomState.panStartOffsetX + (e.touches[0].clientX - zoomState.panStartX);
-                zoomState.offsetY = zoomState.panStartOffsetY + (e.touches[0].clientY - zoomState.panStartY);
+                const dx = e.touches[0].clientX - zoomState.panStartX;
+                const dy = e.touches[0].clientY - zoomState.panStartY;
+                if (Math.hypot(dx, dy) > 8) _touchMoved = true;
+                zoomState.offsetX = zoomState.panStartOffsetX + dx;
+                zoomState.offsetY = zoomState.panStartOffsetY + dy;
                 applyZoomTransform();
+            } else if (e.touches.length === 1) {
+                const dx = e.touches[0].clientX - _touchStartX;
+                const dy = e.touches[0].clientY - _touchStartY;
+                if (Math.hypot(dx, dy) > 8) _touchMoved = true;
             }
         }, { passive: false });
 
         presentationContainer.addEventListener('touchend', e => {
             if (e.touches.length < 2) zoomState.isPinching = false;
             if (e.touches.length === 0) {
+                const wasPanning = zoomState.isPanning;
                 zoomState.isPanning = false;
                 if (!zoomState.isPinching && e.changedTouches.length === 1) {
                     const t = e.changedTouches[0];
@@ -750,6 +767,9 @@
                     const link = el && el.closest('a');
                     if (link) {
                         link.click();
+                        e.preventDefault();
+                    } else if (!_touchMoved && !fsPageIndicator.contains(el) && !fsMenu.contains(el)) {
+                        changePage(state.currentPage + 1, false);
                         e.preventDefault();
                     }
                 }
@@ -936,6 +956,7 @@
         document.addEventListener('mousemove', () => { if (zoomState.isPanning) _panMoved = true; }, true);
 
         presentationContainer.addEventListener('click', (e) => {
+            if (e.pointerType === 'touch') return;
             if (fsPageIndicator.contains(e.target) || fsMenu.contains(e.target)) {
                 return;
             }
