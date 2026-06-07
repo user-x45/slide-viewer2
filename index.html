@@ -559,10 +559,14 @@
             if (e.touches.length === 2) {
                 mainZoomState.isPinching = true;
                 mainZoomState.isPanning = false;
+                mainZoomState.hasPinched = true;
+                mainZoomState.touchMoved = true;
                 mainZoomState.lastPinchDist = getTouchDist(e.touches);
                 mainZoomState.lastPinchMid = getTouchMidpoint(e.touches);
             } else if (e.touches.length === 1) {
                 mainZoomState.isPinching = false;
+                mainZoomState.hasPinched = false;
+                mainZoomState.touchMoved = false;
                 mainZoomState.touchStartX = e.touches[0].clientX;
                 mainZoomState.touchStartY = e.touches[0].clientY;
                 if (mainZoomState.scale > 1) {
@@ -581,6 +585,8 @@
             if (state.isPresentationMode) return;
             e.preventDefault();
             if (e.touches.length === 2) {
+                mainZoomState.hasPinched = true;
+                mainZoomState.touchMoved = true;
                 if (!mainZoomState.isPinching) {
                     mainZoomState.isPinching = true;
                     mainZoomState.lastPinchDist = getTouchDist(e.touches);
@@ -620,10 +626,17 @@
 
         mainViewContainer.addEventListener('touchend', e => {
             if (state.isPresentationMode) return;
-            if (e.changedTouches.length === 1 && !mainZoomState.isPinching) {
+            if (e.changedTouches.length === 1 && !mainZoomState.hasPinched) {
                 const dx = e.changedTouches[0].clientX - (mainZoomState.touchStartX || 0);
                 const dy = e.changedTouches[0].clientY - (mainZoomState.touchStartY || 0);
-                if (Math.hypot(dx, dy) < 8) {
+                if (mainZoomState.scale <= 1 && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+                    if (dx < 0) {
+                        changePage(state.currentPage + 1);
+                    } else {
+                        changePage(state.currentPage - 1);
+                    }
+                    e.preventDefault();
+                } else if (Math.hypot(dx, dy) < 8) {
                     const el = document.elementFromPoint(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
                     const link = el && el.closest('a');
                     if (link) {
@@ -635,6 +648,8 @@
             if (e.touches.length < 2) mainZoomState.isPinching = false;
             if (e.touches.length === 0) {
                 mainZoomState.isPanning = false;
+                mainZoomState.hasPinched = false;
+                mainZoomState.touchMoved = false;
                 if (mainZoomState.scale <= 1) resetMainZoom();
             }
             if (e.touches.length === 1 && mainZoomState.scale > 1) {
@@ -693,11 +708,14 @@
         let _touchStartX = 0;
         let _touchStartY = 0;
         let _touchMoved = false;
+        let _hasPinched = false;
 
         presentationContainer.addEventListener('touchstart', e => {
             if (e.touches.length === 2) {
                 zoomState.isPinching = true;
                 zoomState.isPanning = false;
+                _hasPinched = true;
+                _touchMoved = true;
                 zoomState.lastPinchDist = getTouchDist(e.touches);
                 zoomState.lastPinchMid = getTouchMidpoint(e.touches);
                 e.preventDefault();
@@ -705,6 +723,7 @@
                 _touchStartX = e.touches[0].clientX;
                 _touchStartY = e.touches[0].clientY;
                 _touchMoved = false;
+                _hasPinched = false;
                 if (zoomState.scale > 1) {
                     zoomState.isPanning = true;
                     zoomState.panStartX = e.touches[0].clientX;
@@ -717,7 +736,15 @@
         }, { passive: false });
 
         presentationContainer.addEventListener('touchmove', e => {
-            if (zoomState.isPinching && e.touches.length === 2) {
+            if (e.touches.length === 2) {
+                _hasPinched = true;
+                _touchMoved = true;
+                if (!zoomState.isPinching) {
+                    zoomState.isPinching = true;
+                    zoomState.lastPinchDist = getTouchDist(e.touches);
+                    zoomState.lastPinchMid = getTouchMidpoint(e.touches);
+                    return;
+                }
                 e.preventDefault();
                 const dist = getTouchDist(e.touches);
                 const delta = dist / zoomState.lastPinchDist;
@@ -761,12 +788,23 @@
             if (e.touches.length === 0) {
                 const wasPanning = zoomState.isPanning;
                 zoomState.isPanning = false;
-                if (!zoomState.isPinching && e.changedTouches.length === 1) {
+                if (!_hasPinched && e.changedTouches.length === 1) {
                     const t = e.changedTouches[0];
+                    const dx = t.clientX - _touchStartX;
+                    const dy = t.clientY - _touchStartY;
                     const el = document.elementFromPoint(t.clientX, t.clientY);
                     const link = el && el.closest('a');
                     if (link) {
                         link.click();
+                        e.preventDefault();
+                    } else if (zoomState.scale <= 1 && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) && !fsPageIndicator.contains(el) && !fsMenu.contains(el)) {
+                        if (!fsMenu.classList.contains('hidden')) {
+                            closeMenu();
+                        } else if (dx < 0) {
+                            changePage(state.currentPage + 1, false);
+                        } else {
+                            changePage(state.currentPage - 1, false);
+                        }
                         e.preventDefault();
                     } else if (!_touchMoved && !fsPageIndicator.contains(el) && !fsMenu.contains(el)) {
                         if (!fsMenu.classList.contains('hidden')) {
@@ -779,6 +817,7 @@
                         e.preventDefault();
                     }
                 }
+                _hasPinched = false;
             }
         });
 
