@@ -1368,12 +1368,15 @@
                 const exitPromise = document.exitFullscreen ? document.exitFullscreen() : Promise.resolve();
                 exitPromise.then(() => {
                     setTimeout(() => {
+                        updateNavButtons();
                         renderMainPage(state.currentPage);
                     }, 50);
                 }).catch(() => {
+                    updateNavButtons();
                     renderMainPage(state.currentPage);
                 });
             } else {
+                updateNavButtons();
                 renderMainPage(state.currentPage);
             }
         }
