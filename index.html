@@ -769,7 +769,9 @@
                         link.click();
                         e.preventDefault();
                     } else if (!_touchMoved && !fsPageIndicator.contains(el) && !fsMenu.contains(el)) {
-                        if (state.currentPage >= state.totalPages) {
+                        if (!fsMenu.classList.contains('hidden')) {
+                            closeMenu();
+                        } else if (state.currentPage >= state.totalPages) {
                             showOverlay();
                         } else {
                             changePage(state.currentPage + 1, false);
