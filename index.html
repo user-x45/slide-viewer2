@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="description" content="PDF Slide Viewer - ブラウザ上でPDFファイルを美しいスライド形式で表示。全画面スライドショー、キーボード操作、サムネイル一覧、ダークモード対応。">
     <meta name="robots" content="noindex, nofollow">
     <link rel="icon" type="image/png" href="favicon.png">
@@ -95,6 +95,9 @@
         #main-view-container.zoomed.panning {
             cursor: grabbing;
         }
+        #pdf-url-input {
+            font-size: 16px;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-200 flex flex-col overflow-hidden" style="height:100dvh;max-height:100dvh;">
@@ -174,9 +177,9 @@
             </div>
             <div class="flex gap-2">
                 <input id="pdf-url-input" type="url" placeholder="PDFのURLを入力..." class="flex-1 px-4 py-2.5 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition" />
-                <button id="btn-load-url" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-lg shadow transition whitespace-nowrap flex items-center gap-2">
+                <button id="btn-load-url" class="flex-shrink-0 px-3 sm:px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs rounded-lg shadow transition whitespace-nowrap flex items-center gap-1.5">
                     <i class="fa-solid fa-link"></i>
-                    <span>読み込む</span>
+                    <span class="hidden sm:inline">読み込む</span>
                 </button>
             </div>
         </div>
