@@ -166,6 +166,21 @@
             </div>
         </div>
 
+        <div class="w-full mt-6">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+                <span class="text-xs text-slate-400 dark:text-slate-500 font-medium">または</span>
+                <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
+            </div>
+            <div class="flex gap-2">
+                <input id="pdf-url-input" type="url" placeholder="PDFのURLを入力..." class="flex-1 px-4 py-2.5 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition" />
+                <button id="btn-load-url" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-lg shadow transition whitespace-nowrap flex items-center gap-2">
+                    <i class="fa-solid fa-link"></i>
+                    <span>読み込む</span>
+                </button>
+            </div>
+        </div>
+
         <p class="text-xs text-slate-400 dark:text-slate-500 mt-6 flex items-center">
             <i class="fa-solid fa-shield-halved mr-1"></i>
             PDFファイルはすべてブラウザ上で処理され、サーバーにアップロードされることはありません。
@@ -959,6 +974,18 @@
 
         btnRetryUpload.addEventListener('click', resetToUpload);
 
+        const btnLoadUrl = document.getElementById('btn-load-url');
+        const pdfUrlInput = document.getElementById('pdf-url-input');
+
+        btnLoadUrl.addEventListener('click', () => handlePDFUrl(pdfUrlInput.value));
+        pdfUrlInput.addEventListener('keydown', e => { if (e.key === 'Enter') handlePDFUrl(pdfUrlInput.value); });
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const pdfParam = urlParams.get('url');
+        if (pdfParam) {
+            handlePDFUrl(pdfParam);
+        }
+
         btnSlideshow.addEventListener('click', startSlideshow);
 
         const btnPrevPage = document.getElementById('btn-prev-page');
@@ -1241,6 +1268,42 @@
             reader.readAsArrayBuffer(file);
         }
 
+        async function handlePDFUrl(url) {
+            const trimmed = url.trim();
+            if (!trimmed) return;
+            const lower = trimmed.toLowerCase().split('?')[0].split('#')[0];
+            if (!lower.endsWith('.pdf')) {
+                uploadScreen.classList.add('hidden');
+                errorScreen.classList.remove('hidden');
+                return;
+            }
+            showLoading('PDFを読み込み中...');
+            try {
+                const loadingTask = pdfjsLib.getDocument(trimmed);
+                const pdf = await loadingTask.promise;
+                const urlObj = new URL(trimmed);
+                const fileName = urlObj.pathname.split('/').pop() || 'document.pdf';
+                state.pdfDoc = pdf;
+                state.totalPages = pdf.numPages;
+                state.currentPage = 1;
+                state.pdfName = fileName;
+
+                pdfTitle.textContent = state.pdfName;
+                pdfSubtitle.textContent = `総ページ数: ${state.totalPages} ページ`;
+                totalPagesNum.textContent = state.totalPages;
+                document.getElementById('fs-total-pages').textContent = state.totalPages;
+
+                uploadScreen.classList.add('hidden');
+                errorScreen.classList.add('hidden');
+                viewerScreen.classList.remove('hidden');
+                initViewer();
+            } catch (_) {
+                hideLoading();
+                uploadScreen.classList.add('hidden');
+                errorScreen.classList.remove('hidden');
+            }
+        }
+
         function resetToUpload() {
             if (state.pdfDoc) {
                 state.pdfDoc.destroy();
@@ -1253,6 +1316,8 @@
             state.isPresentationMode = false;
             state.laserPointerEnabled = false;
             state.renderedThumbnails.clear();
+            resetMainZoom();
+            resetZoom();
 
             if (document.fullscreenElement) {
                 document.exitFullscreen();
@@ -1274,6 +1339,10 @@
             presentationCanvas.getContext('2d').clearRect(0, 0, presentationCanvas.width, presentationCanvas.height);
             mainLinkOverlay.innerHTML = '';
             presentationLinkOverlay.innerHTML = '';
+
+            const url = new URL(window.location);
+            url.searchParams.delete('url');
+            window.history.replaceState({}, document.title, url.toString());
         }
 
         async function initViewer() {
@@ -1344,13 +1413,16 @@
                 const containerH = mainViewContainer.clientHeight - margin;
                 const unscaled = page.getViewport({scale: 1});
                 const dpr = window.devicePixelRatio || 1;
-                const scale = Math.min(containerW / unscaled.width, containerH / unscaled.height) * dpr;
+                const fitScale = Math.min(containerW / unscaled.width, containerH / unscaled.height);
+                const scale = Math.max(fitScale, 1) * dpr;
                 const viewport = page.getViewport({scale});
+                const displayW = Math.round(fitScale * unscaled.width);
+                const displayH = Math.round(fitScale * unscaled.height);
 
                 mainCanvas.width = viewport.width;
                 mainCanvas.height = viewport.height;
-                mainCanvas.style.width = `${viewport.width / dpr}px`;
-                mainCanvas.style.height = `${viewport.height / dpr}px`;
+                mainCanvas.style.width = `${displayW}px`;
+                mainCanvas.style.height = `${displayH}px`;
 
                 currentRenderTask = page.render({canvasContext: ctx, viewport});
                 await currentRenderTask.promise;
@@ -1490,6 +1562,18 @@
                 renderMainPage(state.currentPage);
             }
         }
+
+        let resizeTimeout = null;
+        function handleResize() {
+            if (state.isPresentationMode) {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                    resetZoom();
+                    renderPresentationPage(state.currentPage);
+                }, 100);
+            }
+        }
+        window.addEventListener('resize', handleResize);
 
         function showLoading(text) {
             loadingText.textContent = text;
