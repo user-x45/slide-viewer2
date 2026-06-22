@@ -1279,7 +1279,8 @@
             }
             showLoading('PDFを読み込み中...');
             try {
-                const loadingTask = pdfjsLib.getDocument(trimmed);
+                const proxyUrl = 'https://cors-proxy.asukasa462.workers.dev/?url=' + encodeURIComponent(trimmed);
+                const loadingTask = pdfjsLib.getDocument(proxyUrl);
                 const pdf = await loadingTask.promise;
                 const urlObj = new URL(trimmed);
                 const fileName = urlObj.pathname.split('/').pop() || 'document.pdf';
