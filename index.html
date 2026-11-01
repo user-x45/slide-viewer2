@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="PDF Slide Viewer - ブラウザ上でPDFファイルを美しいスライド形式で表示。全画面スライドショー、キーボード操作、サムネイル一覧、ダークモード対応。">
+    <meta name="description" content="PDF Slide Viewer - ブラウザ上でPDFファイル・PowerPoint(pptx)ファイルを美しいスライド形式で表示。全画面スライドショー、キーボード操作、サムネイル一覧、ダークモード対応。">
     <meta name="robots" content="noindex, nofollow">
     <link rel="icon" type="image/png" href="favicon.png">
     <link rel="manifest" href="manifest.json">
@@ -110,7 +110,7 @@
                     <h3 class="text-lg font-semibold text-slate-900 dark:text-white">ファイルを閉じますか？</h3>
                 </div>
                 <p class="text-slate-600 dark:text-slate-400">
-                    現在のPDFを閉じて、アップロード画面に戻ります。
+                    現在のファイルを閉じて、アップロード画面に戻ります。
                 </p>
             </div>
             <div class="border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-6 py-4 flex justify-end gap-3">
@@ -129,9 +129,9 @@
             <div class="inline-flex p-4 bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 rounded-3xl mb-6">
                 <i class="fa-solid fa-circle-exclamation text-6xl"></i>
             </div>
-            <h2 class="text-3xl font-bold text-slate-900 dark:text-white mb-3">PDFの読み込みに失敗しました</h2>
+            <h2 class="text-3xl font-bold text-slate-900 dark:text-white mb-3">ファイルの読み込みに失敗しました</h2>
             <p class="text-slate-600 dark:text-slate-400 max-w-md mx-auto mb-8">
-                ファイルが破損しているか、対応していない形式の可能性があります。<br>別のPDFファイルをお試しください。
+                ファイルが破損しているか、対応していない形式の可能性があります。<br>別のPDFまたはPPTXファイルをお試しください。
             </p>
             <button id="btn-retry-upload" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-2xl flex items-center gap-3 mx-auto transition">
                 <i class="fa-solid fa-rotate"></i>
@@ -150,16 +150,16 @@
                 PDF Slide Viewer
             </h1>
             <p class="text-base text-slate-600 dark:text-slate-400 max-w-md mx-auto">
-                PDFファイルをアップロードして、美しいスライド形式でプレゼンテーション。全画面スライドショー機能も搭載。
+                PDF・PowerPoint(pptx)ファイルをアップロードして、美しいスライド形式でプレゼンテーション。全画面スライドショー機能も搭載。
             </p>
         </div>
 
         <div id="drop-zone" class="w-full bg-white dark:bg-slate-900 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-8 text-center hover:border-indigo-500 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-all cursor-pointer shadow-sm group">
-            <input type="file" id="pdf-input" accept=".pdf" class="hidden" />
+            <input type="file" id="pdf-input" accept=".pdf,.pptx" class="hidden" />
             <div class="flex flex-col items-center">
                 <i class="fa-solid fa-cloud-arrow-up text-5xl text-slate-400 dark:text-slate-600 group-hover:text-indigo-500 transition-colors mb-4"></i>
                 <p class="text-base font-semibold text-slate-700 dark:text-slate-300 mb-1 group-hover:text-indigo-600 transition-colors">
-                    PDFファイルをドラッグ＆ドロップ
+                    PDF・PPTXファイルをドラッグ＆ドロップ
                 </p>
                 <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">
                     またはファイルを選択してください
@@ -177,7 +177,7 @@
                 <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
             </div>
             <div class="flex gap-2">
-                <input id="pdf-url-input" type="url" placeholder="PDFのURLを入力..." class="flex-1 min-w-0 px-4 py-2.5 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition" />
+                <input id="pdf-url-input" type="url" placeholder="PDF・PPTXのURLを入力..." class="flex-1 min-w-0 px-4 py-2.5 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition" />
                 <button id="btn-load-url" class="flex-shrink-0 px-3 sm:px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs rounded-lg shadow transition whitespace-nowrap flex items-center gap-1.5">
                     <i class="fa-solid fa-link"></i>
                     <span class="hidden sm:inline">読み込む</span>
@@ -187,7 +187,7 @@
 
         <p class="text-xs text-slate-400 dark:text-slate-500 mt-6 flex items-center">
             <i class="fa-solid fa-shield-halved mr-1"></i>
-            PDFファイルはすべてブラウザ上で処理され、サーバーにアップロードされることはありません。
+            PDF・PPTXファイルはすべてブラウザ上で処理され、サーバーにアップロードされることはありません。
         </p>
         </div>
     </div>
@@ -228,9 +228,10 @@
 
             <div class="flex-1 flex flex-col min-h-0">
                 <main id="main-view-container" class="flex-1 py-2 px-0 sm:p-8 flex items-center justify-center custom-scrollbar overflow-hidden relative">
-                    <div id="main-zoom-wrapper" style="display:flex;align-items:center;justify-content:center;transform-origin:center center;will-change:transform;">
+                    <div id="main-zoom-wrapper" style="display:flex;align-items:center;justify-content:center;transform-origin:center center;">
                         <div id="main-canvas-wrapper" class="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden relative">
                             <canvas id="main-canvas" class="max-w-full max-h-full block object-contain"></canvas>
+                            <div id="main-pptx-host" style="display:none;position:relative;overflow:hidden;pointer-events:none;user-select:none;"></div>
                             <div id="main-link-overlay" class="link-overlay-container"></div>
                         </div>
                     </div>
@@ -262,6 +263,7 @@
         <div id="presentation-zoom-wrapper" style="position:absolute;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;transform-origin:center center;">
             <div style="position:relative;display:inline-block;">
                 <canvas id="presentation-canvas" style="display:block;"></canvas>
+                <div id="presentation-pptx-host" style="display:none;position:relative;overflow:hidden;background:#fff;pointer-events:none;user-select:none;"></div>
                 <div id="presentation-link-overlay" class="link-overlay-container"></div>
             </div>
         </div>
@@ -294,7 +296,7 @@
 
     <div id="loading-overlay" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex flex-col items-center justify-center text-white">
         <div class="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent mb-4"></div>
-        <p class="text-lg font-semibold" id="loading-text">PDFを処理中...</p>
+        <p class="text-lg font-semibold" id="loading-text">ファイルを処理中...</p>
     </div>
 
     <script type="module">
@@ -334,6 +336,8 @@
         const mainCanvas = document.getElementById('main-canvas');
         const mainViewContainer = document.getElementById('main-view-container');
         const presentationCanvas = document.getElementById('presentation-canvas');
+        const mainPptxHost = document.getElementById('main-pptx-host');
+        const presentationPptxHost = document.getElementById('presentation-pptx-host');
         const laserCanvas = document.getElementById('laser-canvas');
         const mainLinkOverlay = document.getElementById('main-link-overlay');
         const presentationLinkOverlay = document.getElementById('presentation-link-overlay');
@@ -377,6 +381,118 @@
             panStartOffsetX: 0,
             panStartOffsetY: 0,
         };
+
+        const MAX_CANVAS_PIXELS = window.matchMedia('(pointer: coarse)').matches ? 16000000 : 40000000;
+        const MAX_CANVAS_SIDE = 16384;
+        let mainHiResTimer = null;
+        let presentationHiResTimer = null;
+        let mainRenderedScale = 0;
+        let presentationRenderedScale = 0;
+        let mainRenderId = 0;
+        let presentationRenderId = 0;
+
+        const PPTX_BASE_WIDTH = 1280;
+        const PPTX_LIB_URL = 'https://cdn.jsdelivr.net/npm/pptx-preview@1.0.7/dist/pptx-preview.umd.js';
+        let pptxLibPromise = null;
+
+        function loadPptxLib() {
+            if (window.pptxPreview) return Promise.resolve(window.pptxPreview);
+            if (!pptxLibPromise) {
+                pptxLibPromise = new Promise((resolve, reject) => {
+                    const el = document.createElement('script');
+                    el.src = PPTX_LIB_URL;
+                    el.onload = () => window.pptxPreview ? resolve(window.pptxPreview) : reject(new Error('pptx library unavailable'));
+                    el.onerror = () => { pptxLibPromise = null; reject(new Error('pptx library failed to load')); };
+                    document.head.appendChild(el);
+                });
+            }
+            return pptxLibPromise;
+        }
+
+        async function loadPptxDocument(buffer) {
+            const lib = await loadPptxLib();
+            const stage = document.createElement('div');
+            stage.style.cssText = 'position:fixed;left:-99999px;top:0;width:0;height:0;overflow:hidden;';
+            document.body.appendChild(stage);
+            try {
+                const previewer = lib.init(stage, {
+                    width: PPTX_BASE_WIDTH,
+                    height: Math.round(PPTX_BASE_WIDTH * 9 / 16),
+                    mode: 'list'
+                });
+                await previewer.load(buffer);
+                const port = previewer.htmlRender.renderPort;
+                return {
+                    isPptx: true,
+                    numPages: previewer.slideCount,
+                    baseW: port.width,
+                    baseH: port.height,
+                    renderSlide(host, index, displayW, displayH) {
+                        host.innerHTML = '';
+                        host.style.width = `${displayW}px`;
+                        host.style.height = `${displayH}px`;
+                        const holder = document.createElement('div');
+                        holder.style.cssText = `position:relative;overflow:hidden;transform-origin:0 0;width:${port.width}px;height:${port.height}px;transform:scale(${displayW / port.width});`;
+                        host.appendChild(holder);
+                        previewer.htmlRender.wrapper = holder;
+                        previewer.htmlRender.renderSlide(index);
+                    },
+                    destroy() {
+                        try { previewer.destroy(); } catch (_) {}
+                        stage.remove();
+                    }
+                };
+            } catch (err) {
+                stage.remove();
+                throw err;
+            }
+        }
+
+        function isPptxDoc() {
+            return !!(state.pdfDoc && state.pdfDoc.isPptx);
+        }
+
+        function limitScale(scale, w, h) {
+            let s = scale;
+            const area = w * s * h * s;
+            if (area > MAX_CANVAS_PIXELS) s *= Math.sqrt(MAX_CANVAS_PIXELS / area);
+            const side = Math.max(w, h) * s;
+            if (side > MAX_CANVAS_SIDE) s *= MAX_CANVAS_SIDE / side;
+            return s;
+        }
+
+        function startRender(page, scale) {
+            const viewport = page.getViewport({scale});
+            const buffer = document.createElement('canvas');
+            buffer.width = Math.max(1, Math.floor(viewport.width));
+            buffer.height = Math.max(1, Math.floor(viewport.height));
+            const task = page.render({canvasContext: buffer.getContext('2d'), viewport});
+            return {task, buffer, viewport};
+        }
+
+        function commitBuffer(canvas, buffer, displayW, displayH) {
+            canvas.width = buffer.width;
+            canvas.height = buffer.height;
+            canvas.style.width = `${displayW}px`;
+            canvas.style.height = `${displayH}px`;
+            canvas.getContext('2d').drawImage(buffer, 0, 0);
+        }
+
+        function needsRerender(desired, rendered) {
+            return !rendered || desired > rendered * 1.02 || desired < rendered * 0.6;
+        }
+
+        function scheduleMainHiRes() {
+            clearTimeout(mainHiResTimer);
+            if (!state.pdfDoc || state.isPresentationMode) return;
+            mainHiResTimer = setTimeout(() => renderMainPage(state.currentPage, true), 150);
+        }
+
+        function schedulePresentationHiRes() {
+            clearTimeout(presentationHiResTimer);
+            if (!state.pdfDoc || !state.isPresentationMode) return;
+            presentationHiResTimer = setTimeout(() => renderPresentationPage(state.currentPage, true), 150);
+        }
 
         const zoomWrapper = document.getElementById('presentation-zoom-wrapper');
         const mainZoomWrapper = document.getElementById('main-zoom-wrapper');
@@ -465,8 +581,9 @@
         function applyZoomTransform() {
             const vw = window.innerWidth;
             const vh = window.innerHeight;
-            const cw = presentationCanvas.offsetWidth * zoomState.scale;
-            const ch = presentationCanvas.offsetHeight * zoomState.scale;
+            const surface = isPptxDoc() ? presentationPptxHost : presentationCanvas;
+            const cw = surface.offsetWidth * zoomState.scale;
+            const ch = surface.offsetHeight * zoomState.scale;
 
             const maxOffsetX = Math.max(0, (cw - vw) / 2);
             const maxOffsetY = Math.max(0, (ch - vh) / 2);
@@ -476,6 +593,7 @@
 
             zoomWrapper.style.transform =
                 `translate(${zoomState.offsetX}px, ${zoomState.offsetY}px) scale(${zoomState.scale})`;
+            schedulePresentationHiRes();
         }
 
         function resetZoom() {
@@ -483,6 +601,7 @@
             zoomState.offsetX = 0;
             zoomState.offsetY = 0;
             if (zoomWrapper) zoomWrapper.style.transform = '';
+            schedulePresentationHiRes();
         }
 
         function zoomAt(delta, clientX, clientY) {
@@ -519,6 +638,7 @@
             mainZoomHint.style.opacity = '1';
             clearTimeout(mainZoomHintTimeout);
             mainZoomHintTimeout = setTimeout(() => { mainZoomHint.style.opacity = '0'; }, 1500);
+            scheduleMainHiRes();
         }
 
         function resetMainZoom(showHint = false) {
@@ -528,6 +648,7 @@
             mainZoomWrapper.style.transform = '';
             mainViewContainer.classList.remove('zoomed', 'panning');
             clearTimeout(mainZoomHintTimeout);
+            scheduleMainHiRes();
             if (showHint) {
                 mainZoomLevel.textContent = '100%';
                 mainZoomHint.style.opacity = '1';
@@ -968,10 +1089,10 @@
         dropZone.addEventListener('drop', e => {
             e.preventDefault();
             dropZone.classList.remove('border-indigo-500', 'bg-slate-50/80');
-            if (e.dataTransfer.files[0]) handlePDFFile(e.dataTransfer.files[0]);
+            if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
         });
 
-        pdfInput.addEventListener('change', e => e.target.files[0] && handlePDFFile(e.target.files[0]));
+        pdfInput.addEventListener('change', e => e.target.files[0] && handleFile(e.target.files[0]));
 
         btnBackToUpload.addEventListener('click', () => confirmModal.classList.remove('hidden'));
         confirmCancel.addEventListener('click', () => confirmModal.classList.add('hidden'));
@@ -982,13 +1103,13 @@
         const btnLoadUrl = document.getElementById('btn-load-url');
         const pdfUrlInput = document.getElementById('pdf-url-input');
 
-        btnLoadUrl.addEventListener('click', () => handlePDFUrl(pdfUrlInput.value));
-        pdfUrlInput.addEventListener('keydown', e => { if (e.key === 'Enter') handlePDFUrl(pdfUrlInput.value); });
+        btnLoadUrl.addEventListener('click', () => handleUrl(pdfUrlInput.value));
+        pdfUrlInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleUrl(pdfUrlInput.value); });
 
         const urlParams = new URLSearchParams(window.location.search);
         const pdfParam = urlParams.get('url');
         if (pdfParam) {
-            handlePDFUrl(pdfParam);
+            handleUrl(pdfParam);
         }
 
         btnSlideshow.addEventListener('click', startSlideshow);
@@ -1240,73 +1361,76 @@
             }
         }
 
-        function handlePDFFile(file) {
-            if (!file.name.toLowerCase().endsWith('.pdf')) {
+        function showLoadError() {
+            hideLoading();
+            uploadScreen.classList.add('hidden');
+            errorScreen.classList.remove('hidden');
+        }
+
+        function getExtension(name) {
+            const clean = name.toLowerCase().split('?')[0].split('#')[0];
+            if (clean.endsWith('.pdf')) return 'pdf';
+            if (clean.endsWith('.pptx')) return 'pptx';
+            return '';
+        }
+
+        async function openBuffer(buffer, ext, name) {
+            const doc = ext === 'pptx'
+                ? await loadPptxDocument(buffer)
+                : await pdfjsLib.getDocument(new Uint8Array(buffer)).promise;
+            if (!doc.numPages) throw new Error('empty document');
+            state.pdfDoc = doc;
+            state.totalPages = doc.numPages;
+            state.currentPage = 1;
+            state.pdfName = name;
+
+            pdfTitle.textContent = state.pdfName;
+            pdfSubtitle.textContent = `総ページ数: ${state.totalPages} ページ`;
+            totalPagesNum.textContent = state.totalPages;
+            document.getElementById('fs-total-pages').textContent = state.totalPages;
+
+            uploadScreen.classList.add('hidden');
+            errorScreen.classList.add('hidden');
+            viewerScreen.classList.remove('hidden');
+            initViewer();
+        }
+
+        function handleFile(file) {
+            const ext = getExtension(file.name);
+            if (!ext) {
                 uploadScreen.classList.add('hidden');
                 errorScreen.classList.remove('hidden');
                 return;
             }
-            showLoading('PDFを解析中...');
-            state.pdfName = file.name;
+            showLoading(ext === 'pptx' ? 'PPTXを解析中...' : 'PDFを解析中...');
             const reader = new FileReader();
             reader.onload = () => {
-                pdfjsLib.getDocument(new Uint8Array(reader.result)).promise.then(pdf => {
-                    state.pdfDoc = pdf;
-                    state.totalPages = pdf.numPages;
-                    state.currentPage = 1;
-
-                    pdfTitle.textContent = state.pdfName;
-                    pdfSubtitle.textContent = `総ページ数: ${state.totalPages} ページ`;
-                    totalPagesNum.textContent = state.totalPages;
-                    document.getElementById('fs-total-pages').textContent = state.totalPages;
-
-                    uploadScreen.classList.add('hidden');
-                    errorScreen.classList.add('hidden');
-                    viewerScreen.classList.remove('hidden');
-                    initViewer();
-                }).catch(() => {
-                    hideLoading();
-                    uploadScreen.classList.add('hidden');
-                    errorScreen.classList.remove('hidden');
-                });
+                openBuffer(reader.result, ext, file.name).catch(showLoadError);
             };
+            reader.onerror = showLoadError;
             reader.readAsArrayBuffer(file);
         }
 
-        async function handlePDFUrl(url) {
+        async function handleUrl(url) {
             const trimmed = url.trim();
             if (!trimmed) return;
-            const lower = trimmed.toLowerCase().split('?')[0].split('#')[0];
-            if (!lower.endsWith('.pdf')) {
+            const ext = getExtension(trimmed);
+            if (!ext) {
                 uploadScreen.classList.add('hidden');
                 errorScreen.classList.remove('hidden');
                 return;
             }
-            showLoading('PDFを読み込み中...');
+            showLoading('ファイルを読み込み中...');
             try {
                 const proxyUrl = 'https://cors-proxy.asukasa462.workers.dev/?url=' + encodeURIComponent(trimmed);
-                const loadingTask = pdfjsLib.getDocument(proxyUrl);
-                const pdf = await loadingTask.promise;
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error('fetch failed');
+                const buffer = await response.arrayBuffer();
                 const urlObj = new URL(trimmed);
-                const fileName = urlObj.pathname.split('/').pop() || 'document.pdf';
-                state.pdfDoc = pdf;
-                state.totalPages = pdf.numPages;
-                state.currentPage = 1;
-                state.pdfName = fileName;
-
-                pdfTitle.textContent = state.pdfName;
-                pdfSubtitle.textContent = `総ページ数: ${state.totalPages} ページ`;
-                totalPagesNum.textContent = state.totalPages;
-                document.getElementById('fs-total-pages').textContent = state.totalPages;
-
-                uploadScreen.classList.add('hidden');
-                errorScreen.classList.add('hidden');
-                viewerScreen.classList.remove('hidden');
-                initViewer();
+                const fileName = urlObj.pathname.split('/').pop() || `document.${ext}`;
+                await openBuffer(buffer, ext, fileName);
             } catch (_) {
-                hideLoading();
-                uploadScreen.classList.add('hidden');
-                errorScreen.classList.remove('hidden');
+                showLoadError();
             }
         }
 
@@ -1341,6 +1465,12 @@
             uploadScreen.classList.remove('hidden');
 
             document.getElementById('thumbnail-list').innerHTML = '';
+            mainPptxHost.innerHTML = '';
+            mainPptxHost.style.display = 'none';
+            presentationPptxHost.innerHTML = '';
+            presentationPptxHost.style.display = 'none';
+            mainCanvas.style.display = '';
+            presentationCanvas.style.display = 'block';
             mainCanvas.getContext('2d').clearRect(0, 0, mainCanvas.width, mainCanvas.height);
             presentationCanvas.getContext('2d').clearRect(0, 0, presentationCanvas.width, presentationCanvas.height);
             mainLinkOverlay.innerHTML = '';
@@ -1352,7 +1482,7 @@
         }
 
         async function initViewer() {
-            showLoading("PDFを読み込み中...");
+            showLoading("ファイルを読み込み中...");
             await renderMainPage(1);
             const isMobile = window.innerWidth < 640;
             if (isMobile) {
@@ -1393,12 +1523,32 @@
         }
 
         async function renderThumbnail(pageNum) {
+            if (isPptxDoc()) {
+                try {
+                    const doc = state.pdfDoc;
+                    const placeholder = document.getElementById(`thumb-canvas-${pageNum}`);
+                    if (!placeholder) return;
+                    let host = placeholder;
+                    if (placeholder.tagName === 'CANVAS') {
+                        host = document.createElement('div');
+                        host.id = placeholder.id;
+                        host.className = placeholder.className;
+                        host.style.cssText = 'position:relative;overflow:hidden;background:#fff;pointer-events:none;';
+                        placeholder.replaceWith(host);
+                    }
+                    const displayW = host.clientWidth || 200;
+                    const displayH = Math.round(displayW * doc.baseH / doc.baseW);
+                    doc.renderSlide(host, pageNum - 1, displayW, displayH);
+                    state.renderedThumbnails.add(pageNum);
+                } catch (_) {}
+                return;
+            }
             try {
                 const page = await state.pdfDoc.getPage(pageNum);
                 const canvas = document.getElementById(`thumb-canvas-${pageNum}`);
                 if (!canvas) return;
                 const ctx = canvas.getContext('2d');
-                const viewport = page.getViewport({ scale: 0.5 });
+                const viewport = page.getViewport({ scale: 0.5 * Math.max(window.devicePixelRatio || 1, 1) });
                 canvas.width = viewport.width;
                 canvas.height = viewport.height;
                 await page.render({canvasContext: ctx, viewport}).promise;
@@ -1407,12 +1557,36 @@
         }
 
         let currentRenderTask = null;
-        async function renderMainPage(pageNum) {
+        async function renderMainPptx(pageNum) {
+            const doc = state.pdfDoc;
+            mainRenderId++;
+            const isMobile = window.innerWidth < 640;
+            const margin = isMobile ? 8 : 64;
+            const containerW = mainViewContainer.clientWidth - margin;
+            const containerH = mainViewContainer.clientHeight - margin;
+            const fitScale = Math.min(containerW / doc.baseW, containerH / doc.baseH);
+            const displayW = Math.max(1, Math.round(fitScale * doc.baseW));
+            const displayH = Math.max(1, Math.round(fitScale * doc.baseH));
+            mainCanvas.style.display = 'none';
+            mainLinkOverlay.innerHTML = '';
+            mainPptxHost.style.display = 'block';
+            try {
+                doc.renderSlide(mainPptxHost, pageNum - 1, displayW, displayH);
+            } catch (_) {}
+            currentPageNum.textContent = pageNum;
+            updateThumbnailActiveState(pageNum);
+        }
+
+        async function renderMainPage(pageNum, refine = false) {
             if (!state.pdfDoc) return;
-            if (currentRenderTask) currentRenderTask.cancel();
+            if (isPptxDoc()) {
+                if (!refine) await renderMainPptx(pageNum);
+                return;
+            }
+            let renderId = refine ? mainRenderId : ++mainRenderId;
             try {
                 const page = await state.pdfDoc.getPage(pageNum);
-                const ctx = mainCanvas.getContext('2d');
+                if (renderId !== mainRenderId) return;
                 const isMobile = window.innerWidth < 640;
                 const margin = isMobile ? 8 : 64;
                 const containerW = mainViewContainer.clientWidth - margin;
@@ -1420,22 +1594,33 @@
                 const unscaled = page.getViewport({scale: 1});
                 const dpr = window.devicePixelRatio || 1;
                 const fitScale = Math.min(containerW / unscaled.width, containerH / unscaled.height);
-                const scale = Math.max(fitScale, 1) * dpr;
-                const viewport = page.getViewport({scale});
+                const zoom = Math.max(mainZoomState.scale, 1);
+                const scale = limitScale(Math.max(fitScale * zoom, 1) * dpr, unscaled.width, unscaled.height);
                 const displayW = Math.round(fitScale * unscaled.width);
                 const displayH = Math.round(fitScale * unscaled.height);
 
-                mainCanvas.width = viewport.width;
-                mainCanvas.height = viewport.height;
-                mainCanvas.style.width = `${displayW}px`;
-                mainCanvas.style.height = `${displayH}px`;
+                if (refine) {
+                    if (!currentRenderTask && !needsRerender(scale, mainRenderedScale)) return;
+                    renderId = ++mainRenderId;
+                }
+                if (currentRenderTask) currentRenderTask.cancel();
 
-                currentRenderTask = page.render({canvasContext: ctx, viewport});
-                await currentRenderTask.promise;
+                const job = startRender(page, scale);
+                currentRenderTask = job.task;
+                try {
+                    await job.task.promise;
+                } finally {
+                    if (currentRenderTask === job.task) currentRenderTask = null;
+                }
+                if (renderId !== mainRenderId) return;
 
+                commitBuffer(mainCanvas, job.buffer, displayW, displayH);
+                mainRenderedScale = scale;
+
+                if (refine) return;
                 currentPageNum.textContent = pageNum;
                 updateThumbnailActiveState(pageNum);
-                await renderLinkOverlay(page, mainCanvas, mainLinkOverlay, viewport, false);
+                await renderLinkOverlay(page, mainCanvas, mainLinkOverlay, job.viewport, false);
             } catch (_) {}
         }
 
@@ -1470,27 +1655,62 @@
         }
 
         let presentationRenderTask = null;
-        async function renderPresentationPage(pageNum) {
+        function renderPresentationPptx(pageNum) {
+            const doc = state.pdfDoc;
+            presentationRenderId++;
+            const vw = window.innerWidth, vh = window.innerHeight;
+            const fitScale = Math.min(vw / doc.baseW, vh / doc.baseH);
+            const displayW = Math.max(1, Math.round(fitScale * doc.baseW));
+            const displayH = Math.max(1, Math.round(fitScale * doc.baseH));
+            presentationCanvas.style.display = 'none';
+            presentationLinkOverlay.innerHTML = '';
+            presentationPptxHost.style.display = 'block';
+            try {
+                doc.renderSlide(presentationPptxHost, pageNum - 1, displayW, displayH);
+            } catch (_) {}
+            document.getElementById('fs-current-page').textContent = pageNum;
+        }
+
+        async function renderPresentationPage(pageNum, refine = false) {
             if (!state.pdfDoc) return;
-            if (presentationRenderTask) presentationRenderTask.cancel();
+            if (isPptxDoc()) {
+                if (!refine) renderPresentationPptx(pageNum);
+                return;
+            }
+            let renderId = refine ? presentationRenderId : ++presentationRenderId;
             try {
                 const page = await state.pdfDoc.getPage(pageNum);
-                const ctx = presentationCanvas.getContext('2d');
+                if (renderId !== presentationRenderId) return;
                 const dpr = window.devicePixelRatio || 1;
                 const vw = window.innerWidth, vh = window.innerHeight;
                 const unscaled = page.getViewport({scale: 1});
-                const scale = Math.min(vw / unscaled.width, vh / unscaled.height) * dpr;
-                const viewport = page.getViewport({scale});
+                const fitScale = Math.min(vw / unscaled.width, vh / unscaled.height);
+                const zoom = Math.max(zoomState.scale, 1);
+                const scale = limitScale(fitScale * zoom * dpr, unscaled.width, unscaled.height);
+                const displayW = unscaled.width * fitScale;
+                const displayH = unscaled.height * fitScale;
 
-                presentationCanvas.width = viewport.width;
-                presentationCanvas.height = viewport.height;
-                presentationCanvas.style.width = `${viewport.width / dpr}px`;
-                presentationCanvas.style.height = `${viewport.height / dpr}px`;
+                if (refine) {
+                    if (!presentationRenderTask && !needsRerender(scale, presentationRenderedScale)) return;
+                    renderId = ++presentationRenderId;
+                }
+                if (presentationRenderTask) presentationRenderTask.cancel();
 
-                presentationRenderTask = page.render({canvasContext: ctx, viewport});
-                await presentationRenderTask.promise;
+                const job = startRender(page, scale);
+                presentationRenderTask = job.task;
+                try {
+                    await job.task.promise;
+                } finally {
+                    if (presentationRenderTask === job.task) presentationRenderTask = null;
+                }
+                if (renderId !== presentationRenderId) return;
+
+                commitBuffer(presentationCanvas, job.buffer, displayW, displayH);
+                presentationRenderedScale = scale;
+
+                if (refine) return;
                 document.getElementById('fs-current-page').textContent = pageNum;
-                await renderLinkOverlay(page, presentationCanvas, presentationLinkOverlay, viewport, true);
+                await renderLinkOverlay(page, presentationCanvas, presentationLinkOverlay, job.viewport, true);
             } catch (_) {}
         }
 
