@@ -177,7 +177,7 @@
                 <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
             </div>
             <div class="flex gap-2">
-                <input id="pdf-url-input" type="url" placeholder="PDF・PPTXのURLを入力..." class="flex-1 min-w-0 px-4 py-2.5 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition" />
+                <input id="pdf-url-input" type="url" placeholder="PDF・PPTX・GoogleドライブのURLを入力..." class="flex-1 min-w-0 px-4 py-2.5 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition" />
                 <button id="btn-load-url" class="flex-shrink-0 px-3 sm:px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs rounded-lg shadow transition whitespace-nowrap flex items-center gap-1.5">
                     <i class="fa-solid fa-link"></i>
                     <span class="hidden sm:inline">読み込む</span>
@@ -1471,23 +1471,80 @@
             reader.readAsArrayBuffer(file);
         }
 
+        function parseGoogleUrl(url) {
+            let u;
+            try {
+                u = new URL(url);
+            } catch (_) {
+                return null;
+            }
+            if (u.hostname === 'drive.google.com' || u.hostname === 'drive.usercontent.google.com') {
+                const m = u.pathname.match(/\/file\/d\/([\w-]+)/);
+                const id = m ? m[1] : u.searchParams.get('id');
+                if (!id) return null;
+                return {
+                    fetchUrl: `https://drive.usercontent.google.com/download?id=${encodeURIComponent(id)}&export=download&confirm=t`,
+                    fallbackName: 'Googleドライブのファイル'
+                };
+            }
+            if (u.hostname === 'docs.google.com') {
+                const m = u.pathname.match(/\/(presentation|document)\/d\/([\w-]+)/);
+                if (!m) return null;
+                const isSlides = m[1] === 'presentation';
+                return {
+                    fetchUrl: isSlides
+                        ? `https://docs.google.com/presentation/d/${m[2]}/export/pdf`
+                        : `https://docs.google.com/document/d/${m[2]}/export?format=pdf`,
+                    fallbackName: isSlides ? 'Googleスライド' : 'Googleドキュメント'
+                };
+            }
+            return null;
+        }
+
+        function detectExtension(buffer) {
+            const b = new Uint8Array(buffer.slice(0, 4));
+            if (b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46) return 'pdf';
+            if (b[0] === 0x50 && b[1] === 0x4b) return 'pptx';
+            return '';
+        }
+
+        function filenameFromDisposition(header) {
+            if (!header) return '';
+            const star = /filename\*=UTF-8''([^;]+)/i.exec(header);
+            if (star) {
+                try { return decodeURIComponent(star[1]); } catch (_) {}
+            }
+            const plain = /filename="?([^";]+)"?/i.exec(header);
+            return plain ? plain[1] : '';
+        }
+
         async function handleUrl(url) {
             const trimmed = url.trim();
             if (!trimmed) return;
-            const ext = getExtension(trimmed);
-            if (!ext) {
+            const google = parseGoogleUrl(trimmed);
+            const urlExt = getExtension(trimmed);
+            if (!google && !urlExt) {
                 uploadScreen.classList.add('hidden');
                 errorScreen.classList.remove('hidden');
                 return;
             }
             showLoading('ファイルを読み込み中...');
             try {
-                const proxyUrl = 'https://cors-proxy.asukasa462.workers.dev/?url=' + encodeURIComponent(trimmed);
+                const target = google ? google.fetchUrl : trimmed;
+                const proxyUrl = 'https://cors-proxy.asukasa462.workers.dev/?url=' + encodeURIComponent(target);
                 const response = await fetch(proxyUrl);
                 if (!response.ok) throw new Error('fetch failed');
                 const buffer = await response.arrayBuffer();
-                const urlObj = new URL(trimmed);
-                const fileName = urlObj.pathname.split('/').pop() || `document.${ext}`;
+                let ext = urlExt;
+                let fileName;
+                if (google) {
+                    ext = detectExtension(buffer);
+                    if (!ext) throw new Error('unsupported content');
+                    fileName = filenameFromDisposition(response.headers.get('content-disposition')) || `${google.fallbackName}.${ext}`;
+                } else {
+                    const urlObj = new URL(trimmed);
+                    fileName = urlObj.pathname.split('/').pop() || `document.${ext}`;
+                }
                 await openBuffer(buffer, ext, fileName);
             } catch (_) {
                 showLoadError();
@@ -1885,6 +1942,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
 <title>発表者ツール</title>
 <style>
 *{box-sizing:border-box}
@@ -1949,7 +2007,7 @@ button:hover{background:#475569}
       <div class="p-stat"><span>現在時刻</span><strong id="p-clock"></strong></div>
       <div class="p-stat"><span>ページ</span><strong id="p-page"></strong></div>
     </div>
-    <div id="p-controls"><button id="p-prev">◀ 前へ</button><button id="p-next">次へ ▶</button></div>
+    <div id="p-controls"><button id="p-prev"><i class="fa-solid fa-chevron-left"></i> 前へ</button><button id="p-next">次へ <i class="fa-solid fa-chevron-right"></i></button></div>
     <div id="p-actions">
       <button id="p-laser">レーザー ポインタ: オフ</button>
       <button id="p-close">発表者ツールを閉じる</button>
