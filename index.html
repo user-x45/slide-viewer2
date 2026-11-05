@@ -177,12 +177,17 @@
                 <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
             </div>
             <div class="flex gap-2">
-                <input id="pdf-url-input" type="url" placeholder="PDF・PPTX・GoogleドライブのURLを入力..." class="flex-1 min-w-0 px-4 py-2.5 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition" />
+                <input id="pdf-url-input" type="url" placeholder="PDF・PPTXのURLを入力..." class="flex-1 min-w-0 px-4 py-2.5 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition" />
                 <button id="btn-load-url" class="flex-shrink-0 px-3 sm:px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs rounded-lg shadow transition whitespace-nowrap flex items-center gap-1.5">
                     <i class="fa-solid fa-link"></i>
                     <span class="hidden sm:inline">読み込む</span>
                 </button>
             </div>
+            <button id="btn-drive-picker" type="button" class="w-full mt-3 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium text-sm rounded-lg shadow-sm transition flex items-center justify-center gap-2 disabled:opacity-60">
+                <i class="fa-brands fa-google-drive"></i>
+                <span>Googleドライブから選択</span>
+            </button>
+            <p id="drive-picker-error" class="hidden mt-2 text-xs text-red-600 dark:text-red-400"></p>
         </div>
 
         <p class="text-xs text-slate-400 dark:text-slate-500 mt-6 flex items-center">
@@ -1471,101 +1476,10 @@
             reader.readAsArrayBuffer(file);
         }
 
-        function parseGoogleUrl(url) {
-            let u;
-            try {
-                u = new URL(url);
-            } catch (_) {
-                return null;
-            }
-            if (u.hostname === 'drive.google.com' || u.hostname === 'drive.usercontent.google.com') {
-                const m = u.pathname.match(/\/file\/d\/([\w-]+)/);
-                const id = m ? m[1] : u.searchParams.get('id');
-                if (!id) return null;
-                const key = u.searchParams.get('resourcekey');
-                const keyParam = key ? `&resourcekey=${encodeURIComponent(key)}` : '';
-                const eid = encodeURIComponent(id);
-                return {
-                    fetchUrls: [
-                        `https://drive.usercontent.google.com/download?id=${eid}&export=download&confirm=t${keyParam}`,
-                        `https://drive.google.com/uc?export=download&confirm=t&id=${eid}${keyParam}`,
-                        `https://drive.usercontent.google.com/uc?id=${eid}&export=download&confirm=t${keyParam}`
-                    ],
-                    fallbackName: 'Googleドライブのファイル'
-                };
-            }
-            if (u.hostname === 'docs.google.com') {
-                const m = u.pathname.match(/\/(presentation|document)\/d\/([\w-]+)/);
-                if (!m) return null;
-                const isSlides = m[1] === 'presentation';
-                return {
-                    fetchUrls: [
-                        isSlides
-                            ? `https://docs.google.com/presentation/d/${m[2]}/export/pdf`
-                            : `https://docs.google.com/document/d/${m[2]}/export?format=pdf`
-                    ],
-                    fallbackName: isSlides ? 'Googleスライド' : 'Googleドキュメント'
-                };
-            }
-            return null;
-        }
-
         const CORS_PROXY = 'https://cors-proxy.asukasa462.workers.dev/?url=';
 
         function proxied(target) {
             return CORS_PROXY + encodeURIComponent(target);
-        }
-
-        function extractConfirmUrl(html, baseUrl) {
-            const form = /<form[^>]*id="download-form"[^>]*>([\s\S]*?)<\/form>/i.exec(html)
-                || /<form[^>]*action="[^"]*(?:download|uc)[^"]*"[^>]*>([\s\S]*?)<\/form>/i.exec(html);
-            if (form) {
-                const actionMatch = /action="([^"]+)"/i.exec(form[0]);
-                if (actionMatch) {
-                    const action = actionMatch[1].replace(/&amp;/g, '&');
-                    const params = new URLSearchParams();
-                    const re = /<input[^>]*type="hidden"[^>]*>/gi;
-                    let inp;
-                    while ((inp = re.exec(form[0])) !== null) {
-                        const n = /name="([^"]*)"/i.exec(inp[0]);
-                        const v = /value="([^"]*)"/i.exec(inp[0]);
-                        if (n) params.set(n[1], v ? v[1].replace(/&amp;/g, '&') : '');
-                    }
-                    try {
-                        const target = new URL(action, baseUrl);
-                        params.forEach((v, k) => target.searchParams.set(k, v));
-                        return target.toString();
-                    } catch (_) {}
-                }
-            }
-            const link = /href="(\/uc\?export=download[^"]+)"/i.exec(html);
-            if (link) {
-                try {
-                    return new URL(link[1].replace(/&amp;/g, '&'), 'https://drive.google.com').toString();
-                } catch (_) {}
-            }
-            return null;
-        }
-
-        async function fetchGoogleFile(candidates) {
-            for (const candidate of candidates) {
-                try {
-                    let response = await fetch(proxied(candidate));
-                    if (!response.ok) continue;
-                    let buffer = await response.arrayBuffer();
-                    if (detectExtension(buffer)) return { buffer, response };
-
-                    const html = new TextDecoder('utf-8').decode(buffer);
-                    const confirmUrl = extractConfirmUrl(html, candidate);
-                    if (confirmUrl) {
-                        response = await fetch(proxied(confirmUrl));
-                        if (!response.ok) continue;
-                        buffer = await response.arrayBuffer();
-                        if (detectExtension(buffer)) return { buffer, response };
-                    }
-                } catch (_) {}
-            }
-            throw new Error('google fetch failed');
         }
 
         function detectExtension(buffer) {
@@ -1575,52 +1489,180 @@
             return '';
         }
 
-        function filenameFromDisposition(header) {
-            if (!header) return '';
-            const star = /filename\*=UTF-8''([^;]+)/i.exec(header);
-            if (star) {
-                try { return decodeURIComponent(star[1]); } catch (_) {}
-            }
-            const plain = /filename="?([^";]+)"?/i.exec(header);
-            return plain ? plain[1] : '';
-        }
-
         async function handleUrl(url) {
             const trimmed = url.trim();
             if (!trimmed) return;
-            const google = parseGoogleUrl(trimmed);
-            const urlExt = getExtension(trimmed);
-            if (!google && !urlExt) {
+            const ext = getExtension(trimmed);
+            if (!ext) {
                 uploadScreen.classList.add('hidden');
                 errorScreen.classList.remove('hidden');
                 return;
             }
             showLoading('ファイルを読み込み中...');
             try {
-                let response;
-                let buffer;
-                if (google) {
-                    ({ buffer, response } = await fetchGoogleFile(google.fetchUrls));
-                } else {
-                    response = await fetch(proxied(trimmed));
-                    if (!response.ok) throw new Error('fetch failed');
-                    buffer = await response.arrayBuffer();
-                }
-                let ext = urlExt;
-                let fileName;
-                if (google) {
-                    ext = detectExtension(buffer);
-                    if (!ext) throw new Error('unsupported content');
-                    fileName = filenameFromDisposition(response.headers.get('content-disposition')) || `${google.fallbackName}.${ext}`;
-                } else {
-                    const urlObj = new URL(trimmed);
-                    fileName = urlObj.pathname.split('/').pop() || `document.${ext}`;
-                }
+                const response = await fetch(proxied(trimmed));
+                if (!response.ok) throw new Error('fetch failed');
+                const buffer = await response.arrayBuffer();
+                const urlObj = new URL(trimmed);
+                const fileName = urlObj.pathname.split('/').pop() || `document.${ext}`;
                 await openBuffer(buffer, ext, fileName);
             } catch (_) {
                 showLoadError();
             }
         }
+
+        const PICKER_CONFIG_URL = 'https://gdrive-picker-config.user-x45.workers.dev/';
+        const PICKER_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+        const GOOGLE_SLIDES_MIME = 'application/vnd.google-apps.presentation';
+        const GOOGLE_DOCS_MIME = 'application/vnd.google-apps.document';
+        const btnDrivePicker = document.getElementById('btn-drive-picker');
+        const drivePickerError = document.getElementById('drive-picker-error');
+
+        let pickerConfigPromise = null;
+        let pickerScriptsPromise = null;
+        let pickerTokenClient = null;
+        let pickerAccessToken = null;
+        let pickerTokenExpiry = 0;
+
+        function loadScript(src) {
+            return new Promise((resolve, reject) => {
+                const el = document.createElement('script');
+                el.src = src;
+                el.async = true;
+                el.onload = resolve;
+                el.onerror = () => reject(new Error('script load failed'));
+                document.head.appendChild(el);
+            });
+        }
+
+        function getPickerConfig() {
+            if (!pickerConfigPromise) {
+                pickerConfigPromise = fetch(PICKER_CONFIG_URL, { credentials: 'omit' })
+                    .then(r => {
+                        if (!r.ok) throw new Error('config failed');
+                        return r.json();
+                    })
+                    .catch(err => {
+                        pickerConfigPromise = null;
+                        throw err;
+                    });
+            }
+            return pickerConfigPromise;
+        }
+
+        function loadPickerScripts() {
+            if (!pickerScriptsPromise) {
+                pickerScriptsPromise = Promise.all([
+                    loadScript('https://accounts.google.com/gsi/client'),
+                    loadScript('https://apis.google.com/js/api.js').then(() => new Promise((resolve, reject) => {
+                        window.gapi.load('picker', { callback: resolve, onerror: reject });
+                    }))
+                ]).catch(err => {
+                    pickerScriptsPromise = null;
+                    throw err;
+                });
+            }
+            return pickerScriptsPromise;
+        }
+
+        function requestAccessToken(config) {
+            return new Promise((resolve, reject) => {
+                if (pickerAccessToken && Date.now() < pickerTokenExpiry) {
+                    resolve(pickerAccessToken);
+                    return;
+                }
+                if (!pickerTokenClient) {
+                    pickerTokenClient = window.google.accounts.oauth2.initTokenClient({
+                        client_id: config.clientId,
+                        scope: PICKER_SCOPE,
+                        callback: () => {}
+                    });
+                }
+                pickerTokenClient.callback = resp => {
+                    if (resp.error || !resp.access_token) {
+                        reject(new Error(resp.error || 'auth failed'));
+                        return;
+                    }
+                    pickerAccessToken = resp.access_token;
+                    pickerTokenExpiry = Date.now() + (Number(resp.expires_in) || 3600) * 1000 - 60000;
+                    resolve(pickerAccessToken);
+                };
+                pickerTokenClient.error_callback = err => reject(new Error((err && err.type) || 'auth failed'));
+                pickerTokenClient.requestAccessToken({ prompt: pickerAccessToken ? '' : 'consent' });
+            });
+        }
+
+        function showPicker(config, token) {
+            return new Promise(resolve => {
+                const g = window.google.picker;
+                const view = new g.DocsView(g.ViewId.DOCS)
+                    .setIncludeFolders(true)
+                    .setMimeTypes(`application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,${GOOGLE_SLIDES_MIME},${GOOGLE_DOCS_MIME}`);
+                const builder = new g.PickerBuilder()
+                    .addView(view)
+                    .setOAuthToken(token)
+                    .setDeveloperKey(config.apiKey)
+                    .setLocale('ja')
+                    .setCallback(data => {
+                        if (data[g.Response.ACTION] === g.Action.PICKED) {
+                            resolve(data[g.Response.DOCUMENTS][0]);
+                        } else if (data[g.Response.ACTION] === g.Action.CANCEL) {
+                            resolve(null);
+                        }
+                    });
+                if (config.appId) builder.setAppId(config.appId);
+                builder.build().setVisible(true);
+            });
+        }
+
+        async function downloadDriveFile(doc, token) {
+            const id = encodeURIComponent(doc.id);
+            const isGoogleNative = doc.mimeType === GOOGLE_SLIDES_MIME || doc.mimeType === GOOGLE_DOCS_MIME;
+            const url = isGoogleNative
+                ? `https://www.googleapis.com/drive/v3/files/${id}/export?mimeType=application%2Fpdf`
+                : `https://www.googleapis.com/drive/v3/files/${id}?alt=media&supportsAllDrives=true`;
+            const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+            if (!response.ok) throw new Error('download failed');
+            const buffer = await response.arrayBuffer();
+            const ext = detectExtension(buffer);
+            if (!ext) throw new Error('unsupported content');
+            let name = doc.name || 'Googleドライブのファイル';
+            if (isGoogleNative || getExtension(name) !== ext) name = `${name}.${ext}`;
+            return { buffer, ext, name };
+        }
+
+        function setPickerError(message) {
+            if (!message) {
+                drivePickerError.classList.add('hidden');
+                drivePickerError.textContent = '';
+                return;
+            }
+            drivePickerError.textContent = message;
+            drivePickerError.classList.remove('hidden');
+        }
+
+        btnDrivePicker.addEventListener('click', async () => {
+            setPickerError('');
+            btnDrivePicker.disabled = true;
+            try {
+                const [config] = await Promise.all([getPickerConfig(), loadPickerScripts()]);
+                const token = await requestAccessToken(config);
+                btnDrivePicker.disabled = false;
+                const doc = await showPicker(config, token);
+                if (!doc) return;
+                showLoading('Googleドライブから読み込み中...');
+                const file = await downloadDriveFile(doc, token);
+                await openBuffer(file.buffer, file.ext, file.name);
+            } catch (err) {
+                hideLoading();
+                const denied = err && /access_denied|popup_closed|popup_failed_to_open/.test(err.message || '');
+                setPickerError(denied
+                    ? 'Googleアカウントへのアクセスが許可されませんでした。'
+                    : 'Googleドライブから読み込めませんでした。時間をおいて再度お試しください。');
+            } finally {
+                btnDrivePicker.disabled = false;
+            }
+        });
 
         function resetToUpload() {
             closePresenter();
