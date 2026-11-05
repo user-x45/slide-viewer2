@@ -183,11 +183,6 @@
                     <span class="hidden sm:inline">読み込む</span>
                 </button>
             </div>
-            <button id="btn-drive-picker" type="button" class="w-full mt-3 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium text-sm rounded-lg shadow-sm transition flex items-center justify-center gap-2 disabled:opacity-60">
-                <i class="fa-brands fa-google-drive"></i>
-                <span>Googleドライブから選択</span>
-            </button>
-            <p id="drive-picker-error" class="hidden mt-2 text-xs text-red-600 dark:text-red-400"></p>
         </div>
 
         <p class="text-xs text-slate-400 dark:text-slate-500 mt-6 flex items-center">
@@ -1476,19 +1471,6 @@
             reader.readAsArrayBuffer(file);
         }
 
-        const CORS_PROXY = 'https://cors-proxy.asukasa462.workers.dev/?url=';
-
-        function proxied(target) {
-            return CORS_PROXY + encodeURIComponent(target);
-        }
-
-        function detectExtension(buffer) {
-            const b = new Uint8Array(buffer.slice(0, 4));
-            if (b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46) return 'pdf';
-            if (b[0] === 0x50 && b[1] === 0x4b) return 'pptx';
-            return '';
-        }
-
         async function handleUrl(url) {
             const trimmed = url.trim();
             if (!trimmed) return;
@@ -1500,7 +1482,8 @@
             }
             showLoading('ファイルを読み込み中...');
             try {
-                const response = await fetch(proxied(trimmed));
+                const proxyUrl = 'https://cors-proxy.asukasa462.workers.dev/?url=' + encodeURIComponent(trimmed);
+                const response = await fetch(proxyUrl);
                 if (!response.ok) throw new Error('fetch failed');
                 const buffer = await response.arrayBuffer();
                 const urlObj = new URL(trimmed);
@@ -1510,159 +1493,6 @@
                 showLoadError();
             }
         }
-
-        const PICKER_CONFIG_URL = 'https://gdrive-picker-config.user-x45.workers.dev/';
-        const PICKER_SCOPE = 'https://www.googleapis.com/auth/drive.file';
-        const GOOGLE_SLIDES_MIME = 'application/vnd.google-apps.presentation';
-        const GOOGLE_DOCS_MIME = 'application/vnd.google-apps.document';
-        const btnDrivePicker = document.getElementById('btn-drive-picker');
-        const drivePickerError = document.getElementById('drive-picker-error');
-
-        let pickerConfigPromise = null;
-        let pickerScriptsPromise = null;
-        let pickerTokenClient = null;
-        let pickerAccessToken = null;
-        let pickerTokenExpiry = 0;
-
-        function loadScript(src) {
-            return new Promise((resolve, reject) => {
-                const el = document.createElement('script');
-                el.src = src;
-                el.async = true;
-                el.onload = resolve;
-                el.onerror = () => reject(new Error('script load failed'));
-                document.head.appendChild(el);
-            });
-        }
-
-        function getPickerConfig() {
-            if (!pickerConfigPromise) {
-                pickerConfigPromise = fetch(PICKER_CONFIG_URL, { credentials: 'omit' })
-                    .then(r => {
-                        if (!r.ok) throw new Error('config failed');
-                        return r.json();
-                    })
-                    .catch(err => {
-                        pickerConfigPromise = null;
-                        throw err;
-                    });
-            }
-            return pickerConfigPromise;
-        }
-
-        function loadPickerScripts() {
-            if (!pickerScriptsPromise) {
-                pickerScriptsPromise = Promise.all([
-                    loadScript('https://accounts.google.com/gsi/client'),
-                    loadScript('https://apis.google.com/js/api.js').then(() => new Promise((resolve, reject) => {
-                        window.gapi.load('picker', { callback: resolve, onerror: reject });
-                    }))
-                ]).catch(err => {
-                    pickerScriptsPromise = null;
-                    throw err;
-                });
-            }
-            return pickerScriptsPromise;
-        }
-
-        function requestAccessToken(config) {
-            return new Promise((resolve, reject) => {
-                if (pickerAccessToken && Date.now() < pickerTokenExpiry) {
-                    resolve(pickerAccessToken);
-                    return;
-                }
-                if (!pickerTokenClient) {
-                    pickerTokenClient = window.google.accounts.oauth2.initTokenClient({
-                        client_id: config.clientId,
-                        scope: PICKER_SCOPE,
-                        callback: () => {}
-                    });
-                }
-                pickerTokenClient.callback = resp => {
-                    if (resp.error || !resp.access_token) {
-                        reject(new Error(resp.error || 'auth failed'));
-                        return;
-                    }
-                    pickerAccessToken = resp.access_token;
-                    pickerTokenExpiry = Date.now() + (Number(resp.expires_in) || 3600) * 1000 - 60000;
-                    resolve(pickerAccessToken);
-                };
-                pickerTokenClient.error_callback = err => reject(new Error((err && err.type) || 'auth failed'));
-                pickerTokenClient.requestAccessToken({ prompt: pickerAccessToken ? '' : 'consent' });
-            });
-        }
-
-        function showPicker(config, token) {
-            return new Promise(resolve => {
-                const g = window.google.picker;
-                const view = new g.DocsView(g.ViewId.DOCS)
-                    .setIncludeFolders(true)
-                    .setMimeTypes(`application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,${GOOGLE_SLIDES_MIME},${GOOGLE_DOCS_MIME}`);
-                const builder = new g.PickerBuilder()
-                    .addView(view)
-                    .setOAuthToken(token)
-                    .setDeveloperKey(config.apiKey)
-                    .setLocale('ja')
-                    .setCallback(data => {
-                        if (data[g.Response.ACTION] === g.Action.PICKED) {
-                            resolve(data[g.Response.DOCUMENTS][0]);
-                        } else if (data[g.Response.ACTION] === g.Action.CANCEL) {
-                            resolve(null);
-                        }
-                    });
-                if (config.appId) builder.setAppId(config.appId);
-                builder.build().setVisible(true);
-            });
-        }
-
-        async function downloadDriveFile(doc, token) {
-            const id = encodeURIComponent(doc.id);
-            const isGoogleNative = doc.mimeType === GOOGLE_SLIDES_MIME || doc.mimeType === GOOGLE_DOCS_MIME;
-            const url = isGoogleNative
-                ? `https://www.googleapis.com/drive/v3/files/${id}/export?mimeType=application%2Fpdf`
-                : `https://www.googleapis.com/drive/v3/files/${id}?alt=media&supportsAllDrives=true`;
-            const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-            if (!response.ok) throw new Error('download failed');
-            const buffer = await response.arrayBuffer();
-            const ext = detectExtension(buffer);
-            if (!ext) throw new Error('unsupported content');
-            let name = doc.name || 'Googleドライブのファイル';
-            if (isGoogleNative || getExtension(name) !== ext) name = `${name}.${ext}`;
-            return { buffer, ext, name };
-        }
-
-        function setPickerError(message) {
-            if (!message) {
-                drivePickerError.classList.add('hidden');
-                drivePickerError.textContent = '';
-                return;
-            }
-            drivePickerError.textContent = message;
-            drivePickerError.classList.remove('hidden');
-        }
-
-        btnDrivePicker.addEventListener('click', async () => {
-            setPickerError('');
-            btnDrivePicker.disabled = true;
-            try {
-                const [config] = await Promise.all([getPickerConfig(), loadPickerScripts()]);
-                const token = await requestAccessToken(config);
-                btnDrivePicker.disabled = false;
-                const doc = await showPicker(config, token);
-                if (!doc) return;
-                showLoading('Googleドライブから読み込み中...');
-                const file = await downloadDriveFile(doc, token);
-                await openBuffer(file.buffer, file.ext, file.name);
-            } catch (err) {
-                hideLoading();
-                const denied = err && /access_denied|popup_closed|popup_failed_to_open/.test(err.message || '');
-                setPickerError(denied
-                    ? 'Googleアカウントへのアクセスが許可されませんでした。'
-                    : 'Googleドライブから読み込めませんでした。時間をおいて再度お試しください。');
-            } finally {
-                btnDrivePicker.disabled = false;
-            }
-        });
 
         function resetToUpload() {
             closePresenter();
@@ -2055,7 +1885,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
 <title>発表者ツール</title>
 <style>
 *{box-sizing:border-box}
@@ -2120,7 +1949,7 @@ button:hover{background:#475569}
       <div class="p-stat"><span>現在時刻</span><strong id="p-clock"></strong></div>
       <div class="p-stat"><span>ページ</span><strong id="p-page"></strong></div>
     </div>
-    <div id="p-controls"><button id="p-prev"><i class="fa-solid fa-chevron-left"></i> 前へ</button><button id="p-next">次へ <i class="fa-solid fa-chevron-right"></i></button></div>
+    <div id="p-controls"><button id="p-prev">◀ 前へ</button><button id="p-next">次へ ▶</button></div>
     <div id="p-actions">
       <button id="p-laser">レーザー ポインタ: オフ</button>
       <button id="p-close">発表者ツールを閉じる</button>
