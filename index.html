@@ -1167,7 +1167,17 @@
         btnSlideshow.addEventListener('click', () => {
             if (state.pdfDoc) startSlideshow(slideshowOptions);
         });
-        document.getElementById('btn-slideshow-options').addEventListener('click', openSlideshowDialog);
+        const btnSlideshowOptions = document.getElementById('btn-slideshow-options');
+        btnSlideshowOptions.addEventListener('click', openSlideshowDialog);
+
+        function updateSlideshowOptionsButton() {
+            const ok = isPresenterSupported();
+            btnSlideshowOptions.classList.toggle('hidden', !ok);
+            btnSlideshow.classList.toggle('rounded-l-lg', ok);
+            btnSlideshow.classList.toggle('rounded-lg', !ok);
+        }
+        updateSlideshowOptionsButton();
+        window.addEventListener('resize', updateSlideshowOptionsButton);
 
         const btnPrevPage = document.getElementById('btn-prev-page');
         const btnNextPage = document.getElementById('btn-next-page');
@@ -1176,6 +1186,7 @@
 
         if (btnPrevPage) btnPrevPage.addEventListener('click', () => changePage(state.currentPage - 1));
         if (btnNextPage) btnNextPage.addEventListener('click', () => changePage(state.currentPage + 1));
+
 
         function updateNavButtons() {
             if (!state.pdfDoc) return;
@@ -1857,6 +1868,10 @@
 
         async function openSlideshowDialog() {
             if (!state.pdfDoc) return;
+            if (!isPresenterSupported()) {
+                startSlideshow({ screen: null, presenter: false });
+                return;
+            }
             slideshowModal.classList.remove('hidden');
             slideshowScreenList.innerHTML = '';
             slideshowScreenNote.classList.add('hidden');
@@ -1872,7 +1887,7 @@
         slideshowStartBtn.addEventListener('click', () => {
             const checked = slideshowScreenList.querySelector('input[name="slideshow-screen"]:checked');
             const screen = checked ? (screenList[Number(checked.value)] || null) : null;
-            const presenter = slideshowPresenterCheck.checked;
+            const presenter = isPresenterSupported() && slideshowPresenterCheck.checked;
             slideshowModal.classList.add('hidden');
             slideshowOptions.screen = screen;
             slideshowOptions.presenter = presenter;
@@ -1886,6 +1901,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>発表者ツール</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:#0b1120;color:#e2e8f0;font-family:"BIZ UDPGothic","Hiragino Sans","Yu Gothic",sans-serif;overflow:hidden}
@@ -1903,6 +1919,9 @@ html,body{margin:0;height:100%;background:#0b1120;color:#e2e8f0;font-family:"BIZ
 .p-stat{display:flex;align-items:center;gap:8px;background:#1e293b;border-radius:8px;padding:10px 12px}
 .p-stat span{font-size:12px;color:#94a3b8;min-width:64px}
 .p-stat strong{flex:1;font-size:22px;font-variant-numeric:tabular-nums}
+button i{margin-right:.5em}
+#p-prev i{margin:0 .5em 0 0}
+#p-next i{margin:0 0 0 .5em}
 button{font:inherit;color:inherit;border:0;border-radius:8px;padding:8px 12px;background:#334155;cursor:pointer}
 button:hover{background:#475569}
 .p-small{font-size:12px;padding:6px 10px}
@@ -1913,47 +1932,28 @@ button:hover{background:#475569}
 #p-laser.on{background:#b45309}
 #p-cur-box.laser{cursor:crosshair}
 #p-actions{margin-top:auto;display:flex;flex-direction:column;gap:12px}
-#p-close{display:none}
 #p-exit{background:#7f1d1d}
 #p-exit:hover{background:#991b1b}
-@media (max-width:760px),(orientation:portrait){
-#p-root{flex-direction:column;gap:8px;padding:8px;padding-bottom:calc(8px + env(safe-area-inset-bottom,0px))}
-#p-main{flex:1 1 0;min-height:0;gap:4px}
-#p-side{width:100%;max-width:none;min-width:0;flex:none;gap:6px}
-.p-label{font-size:11px}
-#p-next-box{height:22vh}
-#p-info{flex-direction:row;flex-wrap:wrap;gap:6px}
-.p-stat{flex:1 1 auto;padding:6px 8px;gap:6px}
-.p-stat span{display:none}
-.p-stat strong{font-size:16px}
-#p-controls button{padding:16px 8px;font-size:18px}
-#p-actions{margin-top:0;flex-direction:row;gap:8px}
-#p-actions button{flex:1;padding:10px 6px;font-size:13px}
-}
-@media (pointer:coarse){
-#p-laser{display:none}
-}
 </style>
 </head>
 <body>
 <div id="p-root">
   <div id="p-main">
-    <div class="p-label">現在のスライド</div>
+    <div class="p-label"><i class="fa-solid fa-chalkboard-user"></i> 現在のスライド</div>
     <div id="p-cur-box" class="p-box"><canvas id="p-cur-canvas"></canvas><div id="p-cur-host" class="p-host"></div></div>
   </div>
   <div id="p-side">
     <div class="p-label">次のスライド</div>
     <div id="p-next-box" class="p-box"><canvas id="p-next-canvas"></canvas><div id="p-next-host" class="p-host"></div><div id="p-next-end">スライドショーの最後です</div></div>
     <div id="p-info">
-      <div class="p-stat"><span>経過時間</span><strong id="p-elapsed">00:00:00</strong><button id="p-timer-toggle" class="p-small">一時停止</button><button id="p-timer-reset" class="p-small">リセット</button></div>
-      <div class="p-stat"><span>現在時刻</span><strong id="p-clock"></strong></div>
-      <div class="p-stat"><span>ページ</span><strong id="p-page"></strong></div>
+      <div class="p-stat"><i class="fa-solid fa-stopwatch"></i><span>経過時間</span><strong id="p-elapsed">00:00:00</strong><button id="p-timer-toggle" class="p-small"><i class="fa-solid fa-pause"></i>一時停止</button><button id="p-timer-reset" class="p-small"><i class="fa-solid fa-rotate-left"></i>リセット</button></div>
+      <div class="p-stat"><i class="fa-regular fa-clock"></i><span>現在時刻</span><strong id="p-clock"></strong></div>
+      <div class="p-stat"><i class="fa-regular fa-file"></i><span>ページ</span><strong id="p-page"></strong></div>
     </div>
-    <div id="p-controls"><button id="p-prev">◀ 前へ</button><button id="p-next">次へ ▶</button></div>
+    <div id="p-controls"><button id="p-prev"><i class="fa-solid fa-chevron-left"></i>前へ</button><button id="p-next">次へ<i class="fa-solid fa-chevron-right"></i></button></div>
     <div id="p-actions">
-      <button id="p-laser">レーザー ポインタ: オフ</button>
-      <button id="p-close">発表者ツールを閉じる</button>
-      <button id="p-exit">スライドショーを終了</button>
+      <button id="p-laser"><i class="fa-solid fa-lightbulb"></i>レーザー ポインタ: オフ</button>
+      <button id="p-exit"><i class="fa-solid fa-xmark"></i>スライドショーを終了</button>
     </div>
   </div>
 </div>
@@ -1963,7 +1963,6 @@ button:hover{background:#475569}
         const presenter = {
             win: null,
             timer: null,
-            frame: null,
             resizeTimer: null,
             startedAt: 0,
             accumulated: 0,
@@ -1976,13 +1975,13 @@ button:hover{background:#475569}
         function syncPresenterLaser() {
             if (!presenter.win || presenter.win.closed || !presenter.els) return;
             const on = state.laserPointerEnabled;
-            presenter.els.laser.textContent = on ? 'レーザー ポインタ: オン' : 'レーザー ポインタ: オフ';
+            presenter.els.laser.innerHTML = '<i class="fa-solid fa-lightbulb"></i>' + (on ? 'レーザー ポインタ: オン' : 'レーザー ポインタ: オフ');
             presenter.els.laser.classList.toggle('on', on);
             presenter.cur.box.classList.toggle('laser', on);
         }
 
         function presenterAlive() {
-            return !!(presenter.win && !presenter.win.closed && (!presenter.frame || presenter.frame.isConnected));
+            return !!(presenter.win && !presenter.win.closed);
         }
 
         function updatePresenterLabel() {
@@ -1999,6 +1998,7 @@ button:hover{background:#475569}
         }
 
         function notifyPresenterBlocked() {
+            if (!isPresenterSupported()) return;
             presenterText.textContent = 'ポップアップがブロックされました';
             fsMenu.classList.remove('hidden');
             showOverlay();
@@ -2030,11 +2030,11 @@ button:hover{background:#475569}
             if (presenter.running) {
                 presenter.accumulated += Date.now() - presenter.startedAt;
                 presenter.running = false;
-                presenter.els.toggle.textContent = '再開';
+                presenter.els.toggle.innerHTML = '<i class="fa-solid fa-play"></i>再開';
             } else {
                 presenter.startedAt = Date.now();
                 presenter.running = true;
-                presenter.els.toggle.textContent = '一時停止';
+                presenter.els.toggle.innerHTML = '<i class="fa-solid fa-pause"></i>一時停止';
             }
             tickPresenter();
         }
@@ -2138,28 +2138,6 @@ button:hover{background:#475569}
             });
             curBox.addEventListener('mouseleave', () => setRemoteLaser(null));
 
-            let swipeX = 0;
-            let swipeY = 0;
-            curBox.addEventListener('touchstart', e => {
-                if (e.touches.length !== 1) return;
-                swipeX = e.touches[0].clientX;
-                swipeY = e.touches[0].clientY;
-            }, { passive: true });
-            curBox.addEventListener('touchend', e => {
-                const t = e.changedTouches[0];
-                const dx = t.clientX - swipeX;
-                const dy = t.clientY - swipeY;
-                if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
-                    changePage(state.currentPage + (dx < 0 ? 1 : -1));
-                }
-            }, { passive: true });
-
-            if (win.frameElement) {
-                const closeBtn = q('p-close');
-                closeBtn.style.display = 'block';
-                closeBtn.addEventListener('click', () => closePresenter());
-            }
-
             d.addEventListener('keydown', e => {
                 if (['ArrowRight', 'ArrowDown', ' ', 'Enter', 'PageDown'].includes(e.key)) {
                     e.preventDefault();
@@ -2186,25 +2164,16 @@ button:hover{background:#475569}
             setTimeout(renderPresenter, 200);
         }
 
-        function useInlinePresenter() {
-            return window.matchMedia('(pointer: coarse)').matches || window.innerWidth < 640;
+        function isPresenterSupported() {
+            return typeof window.open === 'function'
+                && !window.matchMedia('(pointer: coarse)').matches
+                && window.innerWidth >= 640;
         }
 
         function openPresenterWindow(targetScreen) {
+            if (!isPresenterSupported()) return false;
             if (presenterAlive()) {
                 presenter.win.focus();
-                return true;
-            }
-            if (useInlinePresenter()) {
-                const frame = document.createElement('iframe');
-                frame.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;border:0;z-index:40;background:#0b1120;';
-                presentationContainer.appendChild(frame);
-                const fd = frame.contentDocument;
-                fd.open();
-                fd.write(PRESENTER_HTML);
-                fd.close();
-                presenter.frame = frame;
-                setupPresenter(frame.contentWindow);
                 return true;
             }
             let features = 'popup=yes,width=1280,height=800';
@@ -2229,15 +2198,11 @@ button:hover{background:#475569}
             clearTimeout(presenter.resizeTimer);
             presenter.timer = null;
             const win = presenter.win;
-            const frame = presenter.frame;
             presenter.win = null;
-            presenter.frame = null;
             presenter.cur = null;
             presenter.next = null;
             presenter.els = null;
-            if (frame) {
-                frame.remove();
-            } else if (win && !win.closed) {
+            if (win && !win.closed) {
                 try { win.close(); } catch (_) {}
             }
             updatePresenterLabel();
@@ -2251,7 +2216,7 @@ button:hover{background:#475569}
                 closeMenu();
                 return;
             }
-            if (!useInlinePresenter() && isSingleMonitor() && state.isFullscreen) {
+            if (isSingleMonitor() && state.isFullscreen) {
                 exitFullscreenOnly();
             }
             if (openPresenterWindow(pickPresenterScreen())) {
@@ -2268,7 +2233,8 @@ button:hover{background:#475569}
 
             presentationScreen = options.screen || null;
 
-            const windowedWithPresenter = !!options.presenter && isSingleMonitor();
+            const presenterEnabled = !!options.presenter && isPresenterSupported();
+            const windowedWithPresenter = presenterEnabled && isSingleMonitor();
 
             state.isPresentationMode = true;
             state.isFullscreen = !windowedWithPresenter;
@@ -2282,7 +2248,7 @@ button:hover{background:#475569}
             } else {
                 laserToggle.classList.remove('hidden');
             }
-            presenterToggle.classList.remove('hidden');
+            presenterToggle.classList.toggle('hidden', !isPresenterSupported());
             updatePresenterLabel();
             presentationContainer.classList.remove('hidden');
             isInitialRender = true;
@@ -2324,7 +2290,7 @@ button:hover{background:#475569}
                 }
             }
 
-            if (options.presenter) {
+            if (presenterEnabled) {
                 if (!openPresenterWindow(pickPresenterScreen())) notifyPresenterBlocked();
             }
             updateExitFullscreenButton();
