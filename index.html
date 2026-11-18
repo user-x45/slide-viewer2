@@ -337,6 +337,15 @@
     <div id="loading-overlay" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex flex-col items-center justify-center text-white">
         <div class="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent mb-4"></div>
         <p class="text-lg font-semibold" id="loading-text">ファイルを処理中...</p>
+        <div id="loading-progress-wrap" class="hidden w-64 sm:w-80 mt-4">
+            <div class="h-2 w-full rounded-full bg-white/20 overflow-hidden">
+                <div id="loading-bar" class="h-full w-0 rounded-full bg-indigo-400 transition-[width] duration-150"></div>
+            </div>
+            <div class="flex justify-between gap-3 text-xs text-white/80 mt-2">
+                <span id="loading-detail" class="truncate"></span>
+                <span id="loading-percent" class="tabular-nums flex-shrink-0"></span>
+            </div>
+        </div>
     </div>
 
     <script type="module">
@@ -387,6 +396,11 @@
         const fsPageIndicator = document.getElementById('fs-page-indicator');
         const loadingOverlay = document.getElementById('loading-overlay');
         const loadingText = document.getElementById('loading-text');
+        const loadingProgressWrap = document.getElementById('loading-progress-wrap');
+        const loadingBar = document.getElementById('loading-bar');
+        const loadingDetail = document.getElementById('loading-detail');
+        const loadingPercent = document.getElementById('loading-percent');
+        let loadingMax = 0;
         const btnRetryUpload = document.getElementById('btn-retry-upload');
 
         const confirmModal = document.getElementById('confirm-modal');
@@ -725,8 +739,10 @@
             return pptxLibPromise;
         }
 
-        async function loadPptxDocument(buffer) {
+        async function loadPptxDocument(buffer, report = () => {}) {
+            report(0.05, 'PPTXエンジンを読み込み中...');
             const lib = await loadPptxLib();
+            report(0.25, 'スライドを解析中...');
             const linksPromise = extractPptxLinks(buffer.slice(0));
             const stage = document.createElement('div');
             stage.style.cssText = 'position:fixed;left:-99999px;top:0;width:0;height:0;overflow:hidden;';
@@ -738,8 +754,10 @@
                     mode: 'list'
                 });
                 await previewer.load(buffer);
+                report(0.75, 'リンク情報を抽出中...');
                 const port = previewer.htmlRender.renderPort;
                 const links = await linksPromise;
+                report(1, '');
                 return {
                     isPptx: true,
                     links,
@@ -1724,10 +1742,23 @@
             return '';
         }
 
-        async function openBuffer(buffer, ext, name) {
-            const doc = ext === 'pptx'
-                ? await loadPptxDocument(buffer)
-                : await pdfjsLib.getDocument(new Uint8Array(buffer)).promise;
+        async function openBuffer(buffer, ext, name, base = 0) {
+            const span = 0.95 - base;
+            const report = (r, detail) => setLoadingProgress(base + span * r, detail);
+            const label = ext === 'pptx' ? 'PPTXを解析中...' : 'PDFを解析中...';
+            loadingText.textContent = label;
+            report(0, formatBytes(buffer.byteLength));
+            let doc;
+            if (ext === 'pptx') {
+                doc = await loadPptxDocument(buffer, (r, detail) => report(r, detail || formatBytes(buffer.byteLength)));
+            } else {
+                const task = pdfjsLib.getDocument(new Uint8Array(buffer));
+                task.onProgress = (p) => {
+                    if (p && p.total) report(Math.min(p.loaded / p.total, 1) * 0.9, formatBytes(buffer.byteLength));
+                };
+                doc = await task.promise;
+                report(1, '');
+            }
             if (!doc.numPages) throw new Error('empty document');
             state.pdfDoc = doc;
             state.totalPages = doc.numPages;
@@ -1752,10 +1783,14 @@
                 errorScreen.classList.remove('hidden');
                 return;
             }
-            showLoading(ext === 'pptx' ? 'PPTXを解析中...' : 'PDFを解析中...');
+            hideLoading();
+            setLoadingProgress(0, formatBytes(file.size), 'ファイルを読み込み中...');
             const reader = new FileReader();
+            reader.onprogress = (e) => {
+                if (e.lengthComputable) setLoadingProgress(0.2 * e.loaded / e.total, `${formatBytes(e.loaded)} / ${formatBytes(e.total)}`);
+            };
             reader.onload = () => {
-                openBuffer(reader.result, ext, file.name).catch(showLoadError);
+                openBuffer(reader.result, ext, file.name, 0.2).catch(showLoadError);
             };
             reader.onerror = showLoadError;
             reader.readAsArrayBuffer(file);
@@ -1770,15 +1805,43 @@
                 errorScreen.classList.remove('hidden');
                 return;
             }
-            showLoading('ファイルを読み込み中...');
+            hideLoading();
+            setLoadingProgress(null, 'サーバーに接続中...', 'ファイルをダウンロード中...');
             try {
                 const proxyUrl = PROXY_ENDPOINT + '?url=' + encodeURIComponent(trimmed);
                 const response = await fetch(proxyUrl);
                 if (!response.ok) throw new Error('fetch failed');
-                const buffer = await response.arrayBuffer();
+                const total = Number(response.headers.get('Content-Length')) || 0;
+                let buffer;
+                if (response.body && response.body.getReader) {
+                    const reader = response.body.getReader();
+                    const chunks = [];
+                    let loaded = 0;
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        chunks.push(value);
+                        loaded += value.length;
+                        if (total) {
+                            setLoadingProgress(0.6 * Math.min(loaded / total, 1), `${formatBytes(loaded)} / ${formatBytes(total)}`);
+                        } else {
+                            setLoadingProgress(null, formatBytes(loaded));
+                        }
+                    }
+                    const merged = new Uint8Array(loaded);
+                    let offset = 0;
+                    for (const chunk of chunks) {
+                        merged.set(chunk, offset);
+                        offset += chunk.length;
+                    }
+                    buffer = merged.buffer;
+                } else {
+                    buffer = await response.arrayBuffer();
+                }
+                setLoadingProgress(0.6, formatBytes(buffer.byteLength));
                 const urlObj = new URL(trimmed);
                 const fileName = urlObj.pathname.split('/').pop() || `document.${ext}`;
-                await openBuffer(buffer, ext, fileName);
+                await openBuffer(buffer, ext, fileName, 0.6);
             } catch (_) {
                 showLoadError();
             }
@@ -1833,8 +1896,9 @@
         }
 
         async function initViewer() {
-            showLoading("ファイルを読み込み中...");
+            setLoadingProgress(0.95, '', '1ページ目を描画中...');
             await renderMainPage(1);
+            setLoadingProgress(1, '');
             const isMobile = window.innerWidth < 640;
             if (isMobile) {
                 updateNavButtons();
@@ -2639,12 +2703,40 @@ button:hover{background:#475569}
         }
         window.addEventListener('resize', handleResize);
 
+        function formatBytes(bytes) {
+            if (bytes < 1024) return `${bytes} B`;
+            if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+            return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+        }
         function showLoading(text) {
             loadingText.textContent = text;
             loadingOverlay.classList.remove('hidden');
         }
+        function setLoadingProgress(ratio, detail, text) {
+            if (text) loadingText.textContent = text;
+            loadingOverlay.classList.remove('hidden');
+            loadingProgressWrap.classList.remove('hidden');
+            if (ratio == null) {
+                loadingBar.classList.add('animate-pulse');
+                loadingBar.style.width = loadingMax > 0 ? `${Math.round(loadingMax * 100)}%` : '100%';
+                loadingPercent.textContent = '';
+            } else {
+                loadingMax = Math.max(loadingMax, Math.min(1, Math.max(0, ratio)));
+                const pct = Math.round(loadingMax * 100);
+                loadingBar.classList.remove('animate-pulse');
+                loadingBar.style.width = `${pct}%`;
+                loadingPercent.textContent = `${pct}%`;
+            }
+            loadingDetail.textContent = detail || '';
+        }
         function hideLoading() {
             loadingOverlay.classList.add('hidden');
+            loadingProgressWrap.classList.add('hidden');
+            loadingBar.classList.remove('animate-pulse');
+            loadingBar.style.width = '0%';
+            loadingPercent.textContent = '';
+            loadingDetail.textContent = '';
+            loadingMax = 0;
         }
     
 </script>
