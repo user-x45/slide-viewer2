@@ -431,9 +431,285 @@
         let mainRenderId = 0;
         let presentationRenderId = 0;
 
+        const PROXY_ENDPOINT = 'https://pdf-slide-viewer-proxy.user-x45.workers.dev/';
         const PPTX_BASE_WIDTH = 1280;
         const PPTX_LIB_URL = 'https://cdn.jsdelivr.net/npm/pptx-preview@1.0.7/dist/pptx-preview.umd.js';
+        const JSZIP_URL = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
         let pptxLibPromise = null;
+        let jszipPromise = null;
+
+        function loadJsZip() {
+            if (window.JSZip) return Promise.resolve(window.JSZip);
+            if (!jszipPromise) {
+                jszipPromise = new Promise((resolve, reject) => {
+                    const el = document.createElement('script');
+                    el.src = JSZIP_URL;
+                    el.onload = () => window.JSZip ? resolve(window.JSZip) : reject(new Error('jszip unavailable'));
+                    el.onerror = () => { jszipPromise = null; reject(new Error('jszip failed to load')); };
+                    document.head.appendChild(el);
+                });
+            }
+            return jszipPromise;
+        }
+
+        const NS_A = 'http://schemas.openxmlformats.org/drawingml/2006/main';
+        const NS_P = 'http://schemas.openxmlformats.org/presentationml/2006/main';
+        const NS_R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+
+        function resolveZipPath(baseDir, target) {
+            if (target.startsWith('/')) return target.slice(1);
+            const parts = baseDir.split('/').filter(Boolean);
+            for (const seg of target.split('/')) {
+                if (seg === '..') parts.pop();
+                else if (seg !== '.' && seg !== '') parts.push(seg);
+            }
+            return parts.join('/');
+        }
+
+        function parseRels(xmlText) {
+            const map = {};
+            if (!xmlText) return map;
+            const doc = new DOMParser().parseFromString(xmlText, 'application/xml');
+            for (const rel of doc.getElementsByTagName('Relationship')) {
+                map[rel.getAttribute('Id')] = {
+                    target: rel.getAttribute('Target'),
+                    mode: rel.getAttribute('TargetMode'),
+                    type: rel.getAttribute('Type') || ''
+                };
+            }
+            return map;
+        }
+
+        function childNS(el, ns, name) {
+            for (const c of el.children) {
+                if (c.namespaceURI === ns && c.localName === name) return c;
+            }
+            return null;
+        }
+
+        function readXfrm(xfrm) {
+            if (!xfrm) return null;
+            const off = childNS(xfrm, NS_A, 'off');
+            const ext = childNS(xfrm, NS_A, 'ext');
+            if (!off || !ext) return null;
+            const chOff = childNS(xfrm, NS_A, 'chOff');
+            const chExt = childNS(xfrm, NS_A, 'chExt');
+            return {
+                x: +off.getAttribute('x'), y: +off.getAttribute('y'),
+                cx: +ext.getAttribute('cx'), cy: +ext.getAttribute('cy'),
+                chX: chOff ? +chOff.getAttribute('x') : 0,
+                chY: chOff ? +chOff.getAttribute('y') : 0,
+                chCx: chExt ? +chExt.getAttribute('cx') : 0,
+                chCy: chExt ? +chExt.getAttribute('cy') : 0
+            };
+        }
+
+        function shapeXfrm(el) {
+            if (el.localName === 'graphicFrame') {
+                return readXfrm(childNS(el, NS_P, 'xfrm'));
+            }
+            if (el.localName === 'grpSp') {
+                const pr = childNS(el, NS_P, 'grpSpPr');
+                return pr ? readXfrm(childNS(pr, NS_A, 'xfrm')) : null;
+            }
+            const pr = childNS(el, NS_P, 'spPr');
+            return pr ? readXfrm(childNS(pr, NS_A, 'xfrm')) : null;
+        }
+
+        function mapThroughGroups(box, groups) {
+            let { x, y, cx, cy } = box;
+            for (let i = groups.length - 1; i >= 0; i--) {
+                const g = groups[i];
+                const sx = g.chCx ? g.cx / g.chCx : 1;
+                const sy = g.chCy ? g.cy / g.chCy : 1;
+                x = g.x + (x - g.chX) * sx;
+                y = g.y + (y - g.chY) * sy;
+                cx *= sx;
+                cy *= sy;
+            }
+            return { x, y, cx, cy };
+        }
+
+        function describeLink(hl, rels, slidePaths, slideDir) {
+            const action = hl.getAttribute('action') || '';
+            const rid = hl.getAttributeNS(NS_R, 'id');
+            if (action.startsWith('ppaction://hlinkshowjump')) {
+                const m = action.match(/jump=(\w+)/);
+                if (m) return { jump: m[1] };
+                return null;
+            }
+            if (!rid || !rels[rid]) return null;
+            const rel = rels[rid];
+            if (rel.mode === 'External') {
+                if (/^(https?:|mailto:|tel:)/i.test(rel.target)) return { href: rel.target };
+                return null;
+            }
+            if (action.includes('hlinksldjump') || /\/slide$/.test(rel.type)) {
+                const path = resolveZipPath(slideDir, rel.target);
+                const idx = slidePaths.indexOf(path);
+                if (idx >= 0) return { page: idx + 1 };
+            }
+            return null;
+        }
+
+        function collectSlideLinks(slideDoc, rels, slidePaths, slideDir) {
+            const links = [];
+            const walk = (container, groups) => {
+                for (const el of container.children) {
+                    if (el.namespaceURI !== NS_P) continue;
+                    const name = el.localName;
+                    if (name === 'grpSp') {
+                        const g = shapeXfrm(el);
+                        walk(el, g ? groups.concat([g]) : groups);
+                        continue;
+                    }
+                    if (name !== 'sp' && name !== 'pic' && name !== 'graphicFrame' && name !== 'cxnSp') continue;
+                    const raw = shapeXfrm(el);
+                    const box = raw ? mapThroughGroups(raw, groups) : null;
+                    const nv = el.getElementsByTagNameNS(NS_P, 'cNvPr')[0];
+                    const shapeHl = nv ? childNS(nv, NS_A, 'hlinkClick') : null;
+                    if (shapeHl && box) {
+                        const info = describeLink(shapeHl, rels, slidePaths, slideDir);
+                        if (info) links.push(Object.assign({ box, text: null }, info));
+                    }
+                    const runs = el.getElementsByTagNameNS(NS_A, 'r');
+                    for (const run of runs) {
+                        const rPr = childNS(run, NS_A, 'rPr');
+                        const hl = rPr ? childNS(rPr, NS_A, 'hlinkClick') : null;
+                        if (!hl) continue;
+                        const info = describeLink(hl, rels, slidePaths, slideDir);
+                        if (!info) continue;
+                        const t = childNS(run, NS_A, 't');
+                        links.push(Object.assign({ box, text: t ? t.textContent : null }, info));
+                    }
+                }
+            };
+            const tree = slideDoc.getElementsByTagNameNS(NS_P, 'spTree')[0];
+            if (tree) walk(tree, []);
+            return links;
+        }
+
+        async function extractPptxLinks(buffer) {
+            try {
+                const JSZip = await loadJsZip();
+                const zip = await JSZip.loadAsync(buffer);
+                const readText = async (path) => {
+                    const f = zip.file(path);
+                    return f ? await f.async('string') : null;
+                };
+                const presXml = await readText('ppt/presentation.xml');
+                if (!presXml) return null;
+                const presRels = parseRels(await readText('ppt/_rels/presentation.xml.rels'));
+                const presDoc = new DOMParser().parseFromString(presXml, 'application/xml');
+                const sz = presDoc.getElementsByTagNameNS(NS_P, 'sldSz')[0];
+                if (!sz) return null;
+                const slideW = +sz.getAttribute('cx');
+                const slideH = +sz.getAttribute('cy');
+                const slidePaths = [];
+                for (const id of presDoc.getElementsByTagNameNS(NS_P, 'sldId')) {
+                    const rid = id.getAttributeNS(NS_R, 'id');
+                    const rel = presRels[rid];
+                    slidePaths.push(rel ? resolveZipPath('ppt', rel.target) : null);
+                }
+                const slides = [];
+                for (const path of slidePaths) {
+                    if (!path) { slides.push([]); continue; }
+                    const xml = await readText(path);
+                    if (!xml) { slides.push([]); continue; }
+                    const dir = path.substring(0, path.lastIndexOf('/'));
+                    const file = path.substring(path.lastIndexOf('/') + 1);
+                    const rels = parseRels(await readText(`${dir}/_rels/${file}.rels`));
+                    const slideDoc = new DOMParser().parseFromString(xml, 'application/xml');
+                    slides.push(collectSlideLinks(slideDoc, rels, slidePaths, dir));
+                }
+                return { slideW, slideH, slides };
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function renderPptxLinkOverlay(doc, index, host, overlayEl, isPresentationMode) {
+            overlayEl.innerHTML = '';
+            const data = doc.links;
+            if (!data || !data.slides[index] || !data.slides[index].length) return;
+            const displayW = parseFloat(host.style.width);
+            const displayH = parseFloat(host.style.height);
+            if (!displayW || !displayH) return;
+            overlayEl.style.width = displayW + 'px';
+            overlayEl.style.height = displayH + 'px';
+            const sx = displayW / data.slideW;
+            const sy = displayH / data.slideH;
+            const hostRect = host.getBoundingClientRect();
+            const usedSpans = new Set();
+            const spans = Array.from(host.querySelectorAll('span, a')).filter(n => n.children.length === 0 && n.textContent);
+
+            for (const link of data.slides[index]) {
+                let left = link.box.x * sx;
+                let top = link.box.y * sy;
+                let width = link.box.cx * sx;
+                let height = link.box.cy * sy;
+
+                if (link.text && hostRect.width > 0) {
+                    const span = spans.find(n => !usedSpans.has(n) && n.textContent === link.text);
+                    if (span) {
+                        usedSpans.add(span);
+                        const r = span.getBoundingClientRect();
+                        if (r.width > 0 && r.height > 0) {
+                            const k = displayW / hostRect.width;
+                            left = (r.left - hostRect.left) * k;
+                            top = (r.top - hostRect.top) * k;
+                            width = r.width * k;
+                            height = r.height * k;
+                        }
+                    }
+                }
+
+                const a = document.createElement('a');
+                a.style.left = left + 'px';
+                a.style.top = top + 'px';
+                a.style.width = Math.max(width, 1) + 'px';
+                a.style.height = Math.max(height, 1) + 'px';
+
+                let destPage = null;
+                if (link.page) destPage = link.page;
+                else if (link.jump === 'nextslide') destPage = Math.min(index + 2, state.totalPages);
+                else if (link.jump === 'previousslide') destPage = Math.max(index, 1);
+                else if (link.jump === 'firstslide') destPage = 1;
+                else if (link.jump === 'lastslide') destPage = state.totalPages;
+                else if (link.jump === 'endshow') destPage = null;
+
+                if (link.href) {
+                    a.href = link.href;
+                    a.target = '_blank';
+                    a.rel = 'noopener noreferrer';
+                    if (isPresentationMode) {
+                        a.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            if (state.isFullscreen) {
+                                state.exitingFullscreenForLink = true;
+                                document.exitFullscreen().catch(() => {
+                                    state.exitingFullscreenForLink = false;
+                                });
+                            }
+                        });
+                    } else {
+                        a.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                        });
+                    }
+                } else if (destPage) {
+                    a.href = '#';
+                    a.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        changePage(destPage, false);
+                    });
+                } else {
+                    continue;
+                }
+                overlayEl.appendChild(a);
+            }
+        }
 
         function loadPptxLib() {
             if (window.pptxPreview) return Promise.resolve(window.pptxPreview);
@@ -451,6 +727,7 @@
 
         async function loadPptxDocument(buffer) {
             const lib = await loadPptxLib();
+            const linksPromise = extractPptxLinks(buffer.slice(0));
             const stage = document.createElement('div');
             stage.style.cssText = 'position:fixed;left:-99999px;top:0;width:0;height:0;overflow:hidden;';
             document.body.appendChild(stage);
@@ -462,8 +739,10 @@
                 });
                 await previewer.load(buffer);
                 const port = previewer.htmlRender.renderPort;
+                const links = await linksPromise;
                 return {
                     isPptx: true,
+                    links,
                     numPages: previewer.slideCount,
                     baseW: port.width,
                     baseH: port.height,
@@ -1493,7 +1772,7 @@
             }
             showLoading('ファイルを読み込み中...');
             try {
-                const proxyUrl = 'https://cors-proxy.asukasa462.workers.dev/?url=' + encodeURIComponent(trimmed);
+                const proxyUrl = PROXY_ENDPOINT + '?url=' + encodeURIComponent(trimmed);
                 const response = await fetch(proxyUrl);
                 if (!response.ok) throw new Error('fetch failed');
                 const buffer = await response.arrayBuffer();
@@ -1645,6 +1924,9 @@
             try {
                 doc.renderSlide(mainPptxHost, pageNum - 1, displayW, displayH);
             } catch (_) {}
+            try {
+                renderPptxLinkOverlay(doc, pageNum - 1, mainPptxHost, mainLinkOverlay, false);
+            } catch (_) {}
             currentPageNum.textContent = pageNum;
             updateThumbnailActiveState(pageNum);
         }
@@ -1740,6 +2022,9 @@
             presentationPptxHost.style.display = 'block';
             try {
                 doc.renderSlide(presentationPptxHost, pageNum - 1, displayW, displayH);
+            } catch (_) {}
+            try {
+                renderPptxLinkOverlay(doc, pageNum - 1, presentationPptxHost, presentationLinkOverlay, true);
             } catch (_) {}
             document.getElementById('fs-current-page').textContent = pageNum;
         }
