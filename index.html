@@ -10,7 +10,7 @@
     <title>PDF Slide Viewer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.min.css">
 
     <style>
         body {
@@ -189,6 +189,40 @@
             <i class="fa-solid fa-shield-halved mr-1"></i>
             PDF・PPTXファイルはすべてブラウザ上で処理され、サーバーにアップロードされることはありません。
         </p>
+
+        <section class="w-full mt-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
+                <i class="fa-solid fa-bell text-indigo-500"></i>
+                <h2 class="text-sm font-bold text-slate-900 dark:text-white">最新情報</h2>
+            </div>
+            <div class="p-5 space-y-6">
+                <article>
+                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                        <time datetime="2026-11-19" class="text-xs text-slate-400 dark:text-slate-500">2026.11.19</time>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">PPTX表示エンジンを刷新</span>
+                    </div>
+                    <p class="text-sm text-slate-600 dark:text-slate-400 mb-3">PowerPointの表示エンジンを pptx-vanilla-viewer に変更しました。これにより、次のような点が良くなります。</p>
+                    <ul class="space-y-2 text-sm text-slate-700 dark:text-slate-300">
+                        <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-500 mt-1 text-xs"></i><span>スライドをHTML/CSSで描画するため、拡大しても文字がくっきり表示されます。</span></li>
+                        <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-500 mt-1 text-xs"></i><span>グラフはSVGで描画され、SmartArt・表・図形など幅広い要素に対応しています。</span></li>
+                        <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-500 mt-1 text-xs"></i><span>テーマ・スライドマスター・レイアウトの継承やEMF/WMF画像にも対応し、PowerPointの見た目を再現しやすくなりました。</span></li>
+                        <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-500 mt-1 text-xs"></i><span>埋め込み動画・音声に対応しています（再生できる形式はブラウザに依存します）。</span></li>
+                        <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-500 mt-1 text-xs"></i><span>開発が活発で更新が頻繁なため、今後の改善や不具合修正を取り込みやすくなります。</span></li>
+                    </ul>
+                </article>
+                <article>
+                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                        <time datetime="2026-11-19" class="text-xs text-slate-400 dark:text-slate-500">2026.11.19</time>
+                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">ライブラリを更新</span>
+                    </div>
+                    <ul class="space-y-2 text-sm text-slate-700 dark:text-slate-300">
+                        <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-500 mt-1 text-xs"></i><span>PDFの描画エンジン pdf.js を 6.5.438 に更新</span></li>
+                        <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-500 mt-1 text-xs"></i><span>PPTXのリンク抽出に使う JSZip を 3.10.2 に更新</span></li>
+                        <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-500 mt-1 text-xs"></i><span>アイコンに使う Font Awesome を 7.3.1 に更新</span></li>
+                    </ul>
+                </article>
+            </div>
+        </section>
         </div>
     </div>
 
@@ -350,8 +384,8 @@
 
     <script type="module">
 
-        import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.min.mjs';
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.worker.min.mjs';
+        import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.5.438/pdf.min.mjs';
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.5.438/pdf.worker.min.mjs';
 
         if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
@@ -446,9 +480,8 @@
         let presentationRenderId = 0;
 
         const PROXY_ENDPOINT = 'https://pdf-slide-viewer-proxy.user-x45.workers.dev/';
-        const PPTX_BASE_WIDTH = 1280;
-        const PPTX_LIB_URL = 'https://cdn.jsdelivr.net/npm/pptx-preview@1.0.7/dist/pptx-preview.umd.js';
-        const JSZIP_URL = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+        const PPTX_LIB_URL = 'https://cdn.jsdelivr.net/npm/pptx-vanilla-viewer@3.80.0/+esm';
+        const JSZIP_URL = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.2/jszip.min.js';
         let pptxLibPromise = null;
         let jszipPromise = null;
 
@@ -726,14 +759,10 @@
         }
 
         function loadPptxLib() {
-            if (window.pptxPreview) return Promise.resolve(window.pptxPreview);
             if (!pptxLibPromise) {
-                pptxLibPromise = new Promise((resolve, reject) => {
-                    const el = document.createElement('script');
-                    el.src = PPTX_LIB_URL;
-                    el.onload = () => window.pptxPreview ? resolve(window.pptxPreview) : reject(new Error('pptx library unavailable'));
-                    el.onerror = () => { pptxLibPromise = null; reject(new Error('pptx library failed to load')); };
-                    document.head.appendChild(el);
+                pptxLibPromise = import(PPTX_LIB_URL).catch(err => {
+                    pptxLibPromise = null;
+                    throw err;
                 });
             }
             return pptxLibPromise;
@@ -744,45 +773,57 @@
             const lib = await loadPptxLib();
             report(0.25, 'スライドを解析中...');
             const linksPromise = extractPptxLinks(buffer.slice(0));
-            const stage = document.createElement('div');
-            stage.style.cssText = 'position:fixed;left:-99999px;top:0;width:0;height:0;overflow:hidden;';
-            document.body.appendChild(stage);
-            try {
-                const previewer = lib.init(stage, {
-                    width: PPTX_BASE_WIDTH,
-                    height: Math.round(PPTX_BASE_WIDTH * 9 / 16),
-                    mode: 'list'
-                });
-                await previewer.load(buffer);
-                report(0.75, 'リンク情報を抽出中...');
-                const port = previewer.htmlRender.renderPort;
-                const links = await linksPromise;
-                report(1, '');
-                return {
-                    isPptx: true,
-                    links,
-                    numPages: previewer.slideCount,
-                    baseW: port.width,
-                    baseH: port.height,
-                    renderSlide(host, index, displayW, displayH) {
-                        host.innerHTML = '';
-                        host.style.width = `${displayW}px`;
-                        host.style.height = `${displayH}px`;
-                        const holder = document.createElement('div');
-                        holder.style.cssText = `position:relative;overflow:hidden;transform-origin:0 0;width:${port.width}px;height:${port.height}px;transform:scale(${displayW / port.width});`;
-                        host.appendChild(holder);
-                        previewer.htmlRender.wrapper = holder;
-                        previewer.htmlRender.renderSlide(index);
-                    },
-                    destroy() {
-                        try { previewer.destroy(); } catch (_) {}
-                        stage.remove();
-                    }
-                };
-            } catch (err) {
-                stage.remove();
-                throw err;
-            }
+            const loaded = await lib.loadPresentation(buffer.slice(0));
+            report(0.75, 'リンク情報を抽出中...');
+            const links = await linksPromise;
+            const registry = lib.createDefaultRegistry();
+            const translator = lib.createTranslator('en');
+            const css = lib.getViewerCss();
+            const styleEl = document.createElement('style');
+            styleEl.textContent = css;
+            document.head.appendChild(styleEl);
+            const canvasSize = loaded.canvasSize;
+            report(1, '');
+            return {
+                isPptx: true,
+                links,
+                css,
+                numPages: loaded.slides.length,
+                baseW: canvasSize.width,
+                baseH: canvasSize.height,
+                renderSlide(host, index, displayW, displayH) {
+                    const ownerDoc = host.ownerDocument;
+                    host.innerHTML = '';
+                    host.style.width = `${displayW}px`;
+                    host.style.height = `${displayH}px`;
+                    const holder = ownerDoc.createElement('div');
+                    holder.className = 'pptxv';
+                    holder.style.cssText = `display:block;position:relative;overflow:hidden;width:${displayW}px;height:${displayH}px;`;
+                    host.appendChild(holder);
+                    holder.appendChild(lib.renderSlideStage({
+                        document: ownerDoc,
+                        slide: loaded.slides[index],
+                        canvasSize,
+                        mediaDataUrls: loaded.mediaDataUrls,
+                        colorScheme: loaded.colorScheme,
+                        fontScheme: loaded.fontScheme,
+                        formatScheme: loaded.formatScheme,
+                        tableStyleMap: loaded.tableStyleMap,
+                        registry,
+                        t: translator,
+                        scale: displayW / canvasSize.width,
+                        reading: true,
+                        exposeElementIds: false,
+                        slides: loaded.slides,
+                        currentSlideIndex: index
+                    }));
+                },
+                destroy() {
+                    try { loaded.handler.dispose(); } catch (_) {}
+                    try { lib.revokeBlobUrls(loaded.blobUrls); } catch (_) {}
+                    styleEl.remove();
+                }
+            };
         }
 
         function isPptxDoc() {
@@ -1752,11 +1793,12 @@
             if (ext === 'pptx') {
                 doc = await loadPptxDocument(buffer, (r, detail) => report(r, detail || formatBytes(buffer.byteLength)));
             } else {
-                const task = pdfjsLib.getDocument(new Uint8Array(buffer));
+                const task = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
                 task.onProgress = (p) => {
                     if (p && p.total) report(Math.min(p.loaded / p.total, 1) * 0.9, formatBytes(buffer.byteLength));
                 };
                 doc = await task.promise;
+                doc.destroy = () => task.destroy();
                 report(1, '');
             }
             if (!doc.numPages) throw new Error('empty document');
@@ -2250,7 +2292,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>発表者ツール</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.min.css">
 <style>
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:#0b1120;color:#e2e8f0;font-family:"BIZ UDPGothic","Hiragino Sans","Yu Gothic",sans-serif;overflow:hidden}
@@ -2456,6 +2498,11 @@ button:hover{background:#475569}
         function setupPresenter(win) {
             const d = win.document;
             const q = id => d.getElementById(id);
+            if (isPptxDoc()) {
+                const presenterStyle = d.createElement('style');
+                presenterStyle.textContent = state.pdfDoc.css;
+                d.head.appendChild(presenterStyle);
+            }
             presenter.win = win;
             presenter.cur = { box: q('p-cur-box'), canvas: q('p-cur-canvas'), host: q('p-cur-host'), empty: null, task: null, token: 0 };
             presenter.next = { box: q('p-next-box'), canvas: q('p-next-canvas'), host: q('p-next-host'), empty: q('p-next-end'), task: null, token: 0 };
