@@ -469,6 +469,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                             <li><i class="fa-solid fa-circle-check"></i><span>トップ画面とビューア画面の配色・フォント・レイアウトを見直し、すっきり見やすくなりました。</span></li>
                             <li><i class="fa-solid fa-circle-check"></i><span>ライトモード・ダークモードのどちらでも、落ち着いた配色で表示されます。</span></li>
                             <li><i class="fa-solid fa-circle-check"></i><span>スマートフォンなど画面の狭い端末でも、表示が崩れにくくなりました。</span></li>
+                            <li><i class="fa-solid fa-circle-check"></i><span>レーザーポインターを、赤いリングとやわらかいぼかしの見やすいデザインに変更しました。</span></li>
                         </ul>
                     </article>
                     <article class="news-card">
@@ -1161,18 +1162,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
             laserCtx.clearRect(0, 0, laserCanvas.width, laserCanvas.height);
 
-            laserCtx.shadowColor = '#ef4444';
-            laserCtx.shadowBlur = 30;
+            const halo = laserCtx.createRadialGradient(x, y, 0, x, y, 48);
+            halo.addColorStop(0, 'rgba(255, 70, 90, 0.45)');
+            halo.addColorStop(0.45, 'rgba(255, 70, 90, 0.3)');
+            halo.addColorStop(0.75, 'rgba(255, 70, 90, 0.1)');
+            halo.addColorStop(1, 'rgba(255, 70, 90, 0)');
             laserCtx.beginPath();
-            laserCtx.arc(x, y, 12, 0, Math.PI * 2);
-            laserCtx.fillStyle = 'rgba(239, 68, 68, 0.6)';
+            laserCtx.arc(x, y, 48, 0, Math.PI * 2);
+            laserCtx.fillStyle = halo;
             laserCtx.fill();
 
-            laserCtx.shadowBlur = 10;
             laserCtx.beginPath();
-            laserCtx.arc(x, y, 6, 0, Math.PI * 2);
-            laserCtx.fillStyle = '#ef4444';
-            laserCtx.fill();
+            laserCtx.arc(x, y, 11.5, 0, Math.PI * 2);
+            laserCtx.lineWidth = 9;
+            laserCtx.strokeStyle = '#e60012';
+            laserCtx.stroke();
         }
 
         function clearLaserPointer() {
@@ -2576,6 +2580,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>発表者ツール</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.min.css">
 <style>
 *{box-sizing:border-box}
