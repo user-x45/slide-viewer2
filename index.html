@@ -9,166 +9,379 @@
     <link rel="manifest" href="manifest.json">
     <title>PDF Slide Viewer</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=Shippori+Mincho+B1:wght@600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.min.css">
 
     <style>
+        :root {
+            --bg: #f3efe6;
+            --surface: #fbf9f4;
+            --soft: #ebe6d9;
+            --ink: #1a1814;
+            --muted: #6f6a5f;
+            --line: #ddd6c6;
+            --accent: #e5432a;
+            --accent-ink: #ffffff;
+            --shadow: 0 1px 0 rgba(26,24,20,.04), 0 18px 40px -16px rgba(26,24,20,.32);
+            --serif: "Shippori Mincho B1", "BIZ UDPGothic", serif;
+        }
+        .dark {
+            --bg: #121110;
+            --surface: #1b1a17;
+            --soft: #262420;
+            --ink: #f1ede4;
+            --muted: #9a9486;
+            --line: #2f2d28;
+            --accent: #ff6b4a;
+            --accent-ink: #1a0d08;
+            --shadow: 0 1px 0 rgba(0,0,0,.3), 0 18px 40px -16px rgba(0,0,0,.7);
+        }
+        html { color-scheme: light; max-width: 100%; overflow-x: hidden; }
+        body { max-width: 100%; overflow-x: hidden; }
+        html.dark { color-scheme: dark; }
         body {
             font-family: "BIZ UDPGothic", sans-serif;
+            background: var(--bg);
+            color: var(--ink);
+            -webkit-font-smoothing: antialiased;
         }
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
+        .hidden { display: none !important; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+            padding: .7rem 1.2rem; border-radius: 999px; border: 1px solid transparent;
+            font-size: .875rem; font-weight: 700; line-height: 1; white-space: nowrap;
+            cursor: pointer; transition: background .15s, color .15s, border-color .15s, transform .15s;
         }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: transparent;
+        .btn:active { transform: scale(.97); }
+        .btn:focus-visible, .icon-btn:focus-visible, .link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+        .btn-ink { background: var(--ink); color: var(--bg); }
+        .btn-ink:hover { background: var(--accent); color: var(--accent-ink); }
+        .btn-accent { background: var(--accent); color: var(--accent-ink); }
+        .btn-accent:hover { filter: brightness(1.08); }
+        .btn-ghost { border-color: var(--line); color: var(--ink); }
+        .btn-ghost:hover { background: var(--soft); }
+        .btn-danger { background: #b42318; color: #fff; }
+        .btn-danger:hover { background: #912018; }
+        .icon-btn {
+            display: inline-grid; place-items: center; width: 2.5rem; height: 2.5rem; flex-shrink: 0;
+            border-radius: 999px; color: var(--muted); transition: background .15s, color .15s; cursor: pointer;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 3px;
+        .icon-btn:hover { background: var(--soft); color: var(--ink); }
+        .link-btn {
+            display: inline-flex; align-items: center; gap: .4rem; color: var(--muted);
+            font-size: .8rem; cursor: pointer; transition: color .15s;
         }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
+        .link-btn:hover { color: var(--accent); }
+
+        .screen { flex: 1 1 0%; min-height: 0; }
+        .scroll { overflow-y: auto; }
+        .wrap { width: 100%; max-width: 72rem; margin: 0 auto; padding: 1.25rem 1.5rem 3rem; }
+        .topline { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+        .brand { display: flex; align-items: center; gap: .6rem; font-weight: 700; letter-spacing: .02em; }
+        .brand-mark {
+            display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: .6rem;
+            background: var(--accent); color: var(--accent-ink); font-size: .7rem;
         }
-        #fs-page-indicator {
-            transition: all 0.3s ease;
-            opacity: 0;
-            transform: translateY(10px);
+        .topline-links { display: flex; align-items: center; gap: 1.25rem; }
+        .hero { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2.5rem; padding: 3rem 0 2.5rem; }
+        .hero > *, .panel, .dropzone, .news-grid > * { min-width: 0; max-width: 100%; }
+        .dropzone h2, .dropzone p, .privacy span, .lead { overflow-wrap: anywhere; word-break: normal; }
+        .panel { box-sizing: border-box; width: 100%; }
+        .dropzone { box-sizing: border-box; }
+        @media (min-width: 900px) {
+            .hero { grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); align-items: center; padding: 4.5rem 0 3.5rem; gap: 4rem; }
         }
-        #fs-page-indicator.show {
-            opacity: 1;
-            transform: translateY(0);
+        .eyebrow {
+            display: inline-block; margin-bottom: 1.25rem; padding: .3rem .8rem;
+            border: 1px solid var(--line); border-radius: 999px; font-size: .75rem; color: var(--muted); letter-spacing: .06em;
         }
-        #presentation-container {
-            cursor: default;
+        .hero h1 {
+            font-family: var(--serif); font-weight: 800; letter-spacing: -.01em;
+            font-size: clamp(2.4rem, 6.4vw, 4.4rem); line-height: 1.18;
         }
-        #presentation-container.laser-active {
-            cursor: none;
+        .hero h1 em {
+            font-style: normal; color: var(--accent);
+            background: linear-gradient(transparent 72%, color-mix(in srgb, var(--accent) 22%, transparent) 72%);
         }
-        #presentation-container.show-cursor {
-            cursor: default;
+        .lead { margin-top: 1.5rem; max-width: 30rem; color: var(--muted); line-height: 1.9; font-size: .95rem; }
+        .chips { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1.75rem; }
+        .chips li {
+            display: inline-flex; align-items: center; gap: .45rem; padding: .4rem .8rem;
+            background: var(--surface); border: 1px solid var(--line); border-radius: 999px; font-size: .75rem;
         }
-        #presentation-container.hide-cursor,
-        #presentation-container.hide-cursor * {
-            cursor: none !important;
+        .chips i { color: var(--accent); font-size: .7rem; }
+
+        .panel {
+            background: var(--surface); border: 1px solid var(--line); border-radius: 2rem;
+            padding: 1rem; box-shadow: var(--shadow);
         }
-        #laser-canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 10;
+        .dropzone {
+            border: 2px dashed var(--line); border-radius: 1.5rem; padding: 2.5rem 1.25rem; text-align: center;
+            transition: border-color .2s, background .2s;
         }
-        .menu {
-            animation: menuPop 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        .dropzone:hover, .dropzone.is-drag { border-color: var(--accent); background: var(--soft); }
+        .dropzone-icon {
+            display: grid; place-items: center; width: 4.5rem; height: 4.5rem; margin: 0 auto 1.25rem;
+            border-radius: 50%; background: var(--soft); color: var(--accent); font-size: 1.75rem;
+            transition: transform .2s;
         }
-        @keyframes menuPop {
-            from {
-                opacity: 0;
-                transform: scale(0.95) translateY(-8px);
-            }
-            to {
-                opacity: 1;
-                transform: scale(1) translateY(0);
-            }
+        .dropzone:hover .dropzone-icon, .dropzone.is-drag .dropzone-icon { transform: translateY(-4px); }
+        .dropzone h2 { font-weight: 700; font-size: 1rem; margin-bottom: .35rem; }
+        .dropzone p { font-size: .8rem; color: var(--muted); margin-bottom: 1.25rem; }
+        .or {
+            display: flex; align-items: center; gap: .75rem; margin: 1.1rem .25rem .8rem;
+            font-size: .72rem; color: var(--muted);
         }
-        .link-overlay-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            pointer-events: none;
-        }
-        .link-overlay-container a {
-            position: absolute;
-            pointer-events: auto;
-            cursor: pointer;
-        }
-        #main-view-container {
-            touch-action: none;
-        }
-        #main-view-container.zoomed {
-            cursor: grab;
-            overflow: hidden;
-        }
-        #main-view-container.zoomed.panning {
-            cursor: grabbing;
-        }
+        .or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+        .urlrow { display: flex; gap: .5rem; padding: 0 .25rem; }
         #pdf-url-input {
-            font-size: 16px;
+            flex: 1; min-width: 0; padding: .7rem 1rem; font-size: 16px; color: var(--ink);
+            background: var(--bg); border: 1px solid var(--line); border-radius: 999px; transition: border-color .15s;
         }
+        #pdf-url-input::placeholder { color: var(--muted); opacity: .8; }
+        #pdf-url-input:focus { outline: none; border-color: var(--accent); }
+        .privacy { display: flex; gap: .5rem; margin: 1rem .5rem .4rem; font-size: .72rem; color: var(--muted); line-height: 1.6; }
+        .privacy i { margin-top: .2rem; color: var(--accent); }
+
+        .news { margin-top: 1rem; border-top: 1px solid var(--line); padding-top: 2rem; }
+        .news-title { display: flex; align-items: center; gap: .6rem; font-family: var(--serif); font-size: 1.4rem; font-weight: 800; margin-bottom: 1.5rem; }
+        .news-title i { color: var(--accent); font-size: 1rem; }
+        .news-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; }
+        @media (min-width: 900px) { .news-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+        .news-card { background: var(--surface); border: 1px solid var(--line); border-radius: 1.25rem; padding: 1.4rem; }
+        .news-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; margin-bottom: .8rem; }
+        .news-meta time { font-size: .75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+        .tag { font-size: .7rem; font-weight: 700; padding: .2rem .65rem; border-radius: 999px; background: var(--soft); color: var(--ink); }
+        .tag-accent { background: var(--accent); color: var(--accent-ink); }
+        .news-card p { font-size: .85rem; color: var(--muted); line-height: 1.8; margin-bottom: .8rem; }
+        .ticks { display: grid; gap: .6rem; font-size: .85rem; line-height: 1.7; }
+        .ticks li { display: flex; gap: .6rem; align-items: flex-start; }
+        .ticks i { color: var(--accent); font-size: .7rem; margin-top: .5rem; flex-shrink: 0; }
+        .foot { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: .75rem 1.5rem; justify-content: space-between; font-size: .75rem; color: var(--muted); }
+        .foot-links { display: flex; gap: 1.25rem; }
+
+        .overlay {
+            position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center;
+            padding: 1rem; background: rgba(18,17,16,.55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+        }
+        .dialog {
+            width: 100%; max-width: 26rem; overflow: hidden; background: var(--surface); color: var(--ink);
+            border: 1px solid var(--line); border-radius: 1.75rem; box-shadow: 0 30px 80px -20px rgba(0,0,0,.5);
+            animation: menuPop .2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .dialog-lg { max-width: 34rem; max-height: 85dvh; display: flex; flex-direction: column; }
+        .dialog-body { padding: 1.5rem; }
+        .dialog-head { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; }
+        .dialog-head i { color: var(--accent); font-size: 1.4rem; }
+        .dialog-head h3 { font-family: var(--serif); font-size: 1.2rem; font-weight: 800; }
+        .dialog-foot { display: flex; justify-content: flex-end; gap: .5rem; padding: 1rem 1.5rem; border-top: 1px solid var(--line); background: var(--bg); flex-shrink: 0; }
+        .muted { color: var(--muted); }
+        .info-tab {
+            padding: .6rem 1rem; margin-bottom: -1px; font-size: .85rem; font-weight: 700; color: var(--muted);
+            border-bottom: 2px solid transparent; transition: color .15s; cursor: pointer;
+        }
+        .info-tab:hover { color: var(--ink); }
+        .info-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .info-body { font-size: .85rem; line-height: 1.8; }
+        .box { background: var(--bg); border: 1px solid var(--line); border-radius: 1rem; padding: 1rem; }
+        .box-title { font-weight: 700; margin-bottom: .35rem; }
+        .kbd-grid { display: grid; grid-template-columns: auto 1fr; gap: .4rem 1rem; font-size: .75rem; }
+        .kbd-grid dt { font-family: ui-monospace, monospace; color: var(--muted); }
+        .license-text { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: .7rem; line-height: 1.7; color: var(--muted); }
+        .oss { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; padding: .85rem 0; border-top: 1px solid var(--line); }
+        .oss:first-child { border-top: 0; }
+        .oss a { font-weight: 700; }
+        .oss a:hover { color: var(--accent); }
+        .oss p { font-size: .72rem; color: var(--muted); margin-top: .15rem; }
+        .menu { animation: menuPop 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        @keyframes menuPop {
+            from { opacity: 0; transform: scale(0.95) translateY(-8px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .screen-row {
+            display: flex; align-items: center; gap: .75rem; padding: .7rem .9rem; margin-bottom: .5rem;
+            border: 1px solid var(--line); border-radius: 1rem; cursor: pointer; font-size: .85rem; transition: background .15s, border-color .15s;
+        }
+        .screen-row:hover { background: var(--soft); border-color: var(--accent); }
+        .screen-radio { accent-color: var(--accent); }
+        .screen-title { display: block; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .screen-sub { display: block; font-size: .72rem; color: var(--muted); }
+        .check-row { display: flex; align-items: flex-start; gap: .75rem; cursor: pointer; font-size: .85rem; }
+        .check-row input { margin-top: .2rem; width: 1rem; height: 1rem; accent-color: var(--accent); }
+
+        .error-card { text-align: center; max-width: 28rem; margin: 0 auto; }
+        .error-icon { display: inline-grid; place-items: center; width: 5rem; height: 5rem; border-radius: 50%; margin-bottom: 1.5rem; background: color-mix(in srgb, #dc2626 14%, transparent); color: #dc2626; font-size: 2rem; }
+        .error-card h2 { font-family: var(--serif); font-size: 1.75rem; font-weight: 800; margin-bottom: .75rem; }
+        .error-card p { color: var(--muted); line-height: 1.8; margin-bottom: 2rem; font-size: .9rem; }
+
+        .bar {
+            display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-shrink: 0;
+            padding: .6rem 1rem; background: var(--bg); border-bottom: 1px solid var(--line); z-index: 10;
+        }
+        .bar-left { display: flex; align-items: center; gap: .5rem; min-width: 0; flex: 1; }
+        .bar-title { font-size: .95rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .bar-sub { font-size: .72rem; color: var(--muted); display: none; }
+        .bar-right { display: flex; align-items: center; gap: .6rem; flex-shrink: 0; }
+        .pager {
+            display: none; align-items: center; gap: .3rem; padding: .45rem .9rem; border-radius: 999px;
+            background: var(--soft); font-size: .8rem; font-weight: 700; font-variant-numeric: tabular-nums;
+        }
+        .pager span:first-child { color: var(--accent); }
+        .seg { display: flex; align-items: stretch; }
+        .seg-main { border-radius: 999px 0 0 999px; padding-right: 1rem; }
+        .seg-main.seg-solo { border-radius: 999px; }
+        .seg-opt { border-radius: 0 999px 999px 0; padding: 0 .9rem 0 .75rem; border-left: 1px solid color-mix(in srgb, var(--accent-ink) 30%, transparent); }
+        .lbl { display: none; }
+        .sidebar {
+            display: none; flex-direction: column; flex-shrink: 0; width: 15rem; height: 100%;
+            background: var(--surface); border-right: 1px solid var(--line);
+        }
+        .sidebar-head { padding: .85rem 1rem; border-bottom: 1px solid var(--line); font-size: .7rem; font-weight: 700; letter-spacing: .12em; color: var(--muted); }
+        .thumb {
+            display: flex; flex-direction: column; align-items: center; margin-bottom: .6rem; padding: .5rem;
+            border: 1px solid transparent; border-radius: .9rem; cursor: pointer; transition: background .15s, border-color .15s;
+        }
+        .thumb:hover { background: var(--soft); }
+        .thumb.active { background: var(--soft); border-color: var(--accent); }
+        .thumb-canvas { display: block; width: 100%; background: #fff; border-radius: 4px; border: 1px solid var(--line); box-shadow: 0 4px 12px -6px rgba(0,0,0,.35); }
+        .thumb-n { margin-top: .4rem; font-size: .7rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+        .thumb.active .thumb-n { color: var(--accent); font-weight: 700; }
+        .stage {
+            background-color: var(--soft);
+            background-image: radial-gradient(color-mix(in srgb, var(--muted) 35%, transparent) 1px, transparent 1px);
+            background-size: 22px 22px;
+        }
+        .frame { position: relative; overflow: hidden; background: #fff; border-radius: 6px; box-shadow: var(--shadow); }
+        .hint {
+            position: absolute; right: 1rem; bottom: 1rem; display: flex; align-items: center; gap: .4rem;
+            padding: .4rem .8rem; border-radius: 999px; background: rgba(20,19,15,.78); color: #fff; font-size: .72rem;
+            backdrop-filter: blur(6px); pointer-events: none; opacity: 0; transition: opacity .3s;
+        }
+        .mnav {
+            display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-shrink: 0;
+            padding: .7rem 1rem calc(.7rem + env(safe-area-inset-bottom, 0px)); background: var(--bg); border-top: 1px solid var(--line);
+        }
+        .nav-btn {
+            display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 50%;
+            background: var(--ink); color: var(--bg); transition: opacity .15s, transform .15s;
+        }
+        .nav-btn:active { transform: scale(.92); }
+        .nav-btn:disabled { opacity: .25; }
+        .nav-count { font-size: .85rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--muted); }
+        .nav-count span:first-child { color: var(--accent); }
+        @media (min-width: 640px) {
+            .pager { display: inline-flex; }
+            .sidebar { display: flex; }
+            .lbl { display: inline; }
+            .bar-sub { display: block; }
+            .mnav { display: none; }
+            .bar { padding: .75rem 1.5rem; }
+        }
+
+        #main-view-container { touch-action: none; }
+        #main-view-container.zoomed { cursor: grab; overflow: hidden; }
+        #main-view-container.zoomed.panning { cursor: grabbing; }
+
+        #presentation-container { cursor: default; }
+        #presentation-container.laser-active { cursor: none; }
+        #presentation-container.show-cursor { cursor: default; }
+        #presentation-container.hide-cursor,
+        #presentation-container.hide-cursor * { cursor: none !important; }
+        #laser-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+        #fs-page-indicator { transition: all 0.3s ease; opacity: 0; transform: translateY(10px); }
+        #fs-page-indicator.show { opacity: 1; transform: translateY(0); }
+        .fs-pill {
+            position: absolute; bottom: 1.5rem; left: 1.5rem; z-index: 20; display: flex; align-items: center; gap: .6rem;
+            padding: .4rem .5rem .4rem 1.1rem; border-radius: 999px; background: rgba(20,19,15,.8); color: #fff;
+            font-size: .85rem; font-weight: 700; font-variant-numeric: tabular-nums; backdrop-filter: blur(8px); pointer-events: auto;
+        }
+        .fs-pill b { color: #ff6b4a; font-weight: 700; }
+        .fs-dots { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 50%; color: rgba(255,255,255,.85); transition: background .15s; }
+        .fs-dots:hover { background: rgba(255,255,255,.18); color: #fff; }
+        .fs-menu {
+            position: absolute; bottom: 5rem; left: 1.5rem; z-index: 30; width: 15rem; padding: .35rem;
+            background: #1b1a17; border: 1px solid #3a3731; border-radius: 1.1rem; color: #f1ede4;
+            font-size: .85rem; box-shadow: 0 24px 60px -12px rgba(0,0,0,.7); pointer-events: auto;
+        }
+        .fs-item { display: flex; align-items: center; gap: .75rem; width: 100%; padding: .7rem .85rem; border-radius: .7rem; text-align: left; transition: background .15s; }
+        .fs-item:hover { background: #2a2823; }
+        .fs-item i { width: 1rem; text-align: center; }
+        .link-overlay-container { position: absolute; top: 0; left: 0; pointer-events: none; }
+        .link-overlay-container a { position: absolute; pointer-events: auto; cursor: pointer; }
+
+        .loading { position: fixed; inset: 0; z-index: 110; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(18,17,16,.7); backdrop-filter: blur(6px); color: #f1ede4; }
+        .spinner { width: 3rem; height: 3rem; margin-bottom: 1.25rem; border-radius: 50%; border: 3px solid rgba(255,255,255,.2); border-top-color: #ff6b4a; animation: rot .8s linear infinite; }
+        @keyframes rot { to { transform: rotate(360deg); } }
+        .load-track { height: 4px; width: 100%; border-radius: 4px; overflow: hidden; background: rgba(255,255,255,.18); }
+        .load-fill { height: 100%; width: 0; border-radius: 4px; background: #ff6b4a; transition: width .15s; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-200 flex flex-col overflow-hidden" style="height:100dvh;">
+<body class="flex flex-col overflow-hidden" style="height:100dvh;">
 
-    <div id="confirm-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center">
-        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-sm w-full mx-4 overflow-hidden">
-            <div class="p-6">
-                <div class="flex items-center gap-3 mb-4">
-                    <i class="fa-solid fa-triangle-exclamation text-amber-500 text-2xl"></i>
-                    <h3 class="text-lg font-semibold text-slate-900 dark:text-white">ファイルを閉じますか？</h3>
+    <div id="confirm-modal" class="hidden overlay">
+        <div class="dialog">
+            <div class="dialog-body">
+                <div class="dialog-head">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <h3>ファイルを閉じますか？</h3>
                 </div>
-                <p class="text-slate-600 dark:text-slate-400">
-                    現在のファイルを閉じて、アップロード画面に戻ります。
-                </p>
+                <p class="muted" style="font-size:.9rem;line-height:1.8;">現在のファイルを閉じて、アップロード画面に戻ります。</p>
             </div>
-            <div class="border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-6 py-4 flex justify-end gap-3">
-                <button id="confirm-cancel" class="px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition">
-                    キャンセル
-                </button>
-                <button id="confirm-ok" class="px-5 py-2.5 text-sm font-medium bg-rose-600 hover:bg-rose-700 text-white rounded-xl transition">
-                    閉じる
-                </button>
+            <div class="dialog-foot">
+                <button id="confirm-cancel" class="btn btn-ghost">キャンセル</button>
+                <button id="confirm-ok" class="btn btn-danger">閉じる</button>
             </div>
         </div>
     </div>
 
-    <div id="info-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-lg w-full max-h-[85dvh] flex flex-col overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="info-modal-title">
-            <div class="px-6 pt-5 pb-0 shrink-0">
-                <div class="flex items-center justify-between mb-4">
-                    <h3 id="info-modal-title" class="text-lg font-semibold text-slate-900 dark:text-white">PDF Slide Viewer</h3>
-                    <button id="info-close" class="p-2 -mr-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors" aria-label="閉じる">
-                        <i class="fa-solid fa-xmark text-lg"></i>
-                    </button>
+    <div id="info-modal" class="hidden overlay">
+        <div class="dialog dialog-lg" role="dialog" aria-modal="true" aria-labelledby="info-modal-title">
+            <div style="padding:1.25rem 1.5rem 0;flex-shrink:0;">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+                    <h3 id="info-modal-title" style="font-family:var(--serif);font-size:1.2rem;font-weight:800;">PDF Slide Viewer</h3>
+                    <button id="info-close" class="icon-btn" aria-label="閉じる"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <div class="flex gap-1 border-b border-slate-200 dark:border-slate-700">
-                    <button type="button" data-tab="about" class="info-tab px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors">このアプリについて</button>
-                    <button type="button" data-tab="license" class="info-tab px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors">ライセンス</button>
+                <div style="display:flex;gap:.25rem;border-bottom:1px solid var(--line);">
+                    <button type="button" data-tab="about" class="info-tab">このアプリについて</button>
+                    <button type="button" data-tab="license" class="info-tab">ライセンス</button>
                 </div>
             </div>
 
-            <div id="info-scroll" class="flex-1 overflow-y-auto custom-scrollbar px-6 py-5 text-sm text-slate-700 dark:text-slate-300">
-                <div id="info-panel-about" class="space-y-4 leading-relaxed">
+            <div id="info-scroll" class="custom-scrollbar info-body" style="flex:1;overflow-y:auto;padding:1.25rem 1.5rem;">
+                <div id="info-panel-about" style="display:grid;gap:1rem;">
                     <p>PDF Slide Viewer は、PDFファイルとPowerPoint(pptx)ファイルを、ブラウザ上でスライド形式のまま表示・発表できるビューアです。インストールやアカウント登録は不要です。</p>
-                    <ul class="space-y-2">
-                        <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-500 mt-1 text-xs"></i><span>ファイルのドラッグ＆ドロップ、またはURL指定で読み込み（<code class="px-1 rounded bg-slate-100 dark:bg-slate-800 text-xs">?url=</code> パラメータにも対応）</span></li>
-                        <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-500 mt-1 text-xs"></i><span>サムネイル一覧、ピンチ・ダブルクリックによる拡大表示</span></li>
-                        <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-500 mt-1 text-xs"></i><span>全画面スライドショー、レーザーポインタ、発表者ツール（別ウィンドウ・タイマー付き）</span></li>
-                        <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-500 mt-1 text-xs"></i><span>スライド内のハイパーリンクとスライド間ジャンプに対応</span></li>
-                        <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-500 mt-1 text-xs"></i><span>ライト／ダークモード、スマートフォン表示に対応</span></li>
+                    <ul class="ticks">
+                        <li><i class="fa-solid fa-circle-check"></i><span>ファイルのドラッグ＆ドロップ、またはURL指定で読み込み（<code style="font-size:.75rem;padding:0 .3rem;border-radius:.3rem;background:var(--soft);">?url=</code> パラメータにも対応）</span></li>
+                        <li><i class="fa-solid fa-circle-check"></i><span>サムネイル一覧、ピンチ・ダブルクリックによる拡大表示</span></li>
+                        <li><i class="fa-solid fa-circle-check"></i><span>全画面スライドショー、レーザーポインタ、発表者ツール（別ウィンドウ・タイマー付き）</span></li>
+                        <li><i class="fa-solid fa-circle-check"></i><span>スライド内のハイパーリンクとスライド間ジャンプに対応</span></li>
+                        <li><i class="fa-solid fa-circle-check"></i><span>ライト／ダークモード、スマートフォン表示に対応</span></li>
                     </ul>
-                    <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-4">
-                        <p class="font-semibold text-slate-800 dark:text-slate-200 mb-1"><i class="fa-solid fa-shield-halved mr-1.5 text-indigo-500"></i>プライバシー</p>
-                        <p class="text-xs text-slate-600 dark:text-slate-400">ローカルから選択したファイルはすべてブラウザ内で処理され、サーバーに送信されません。URLから読み込む場合のみ、ファイル取得のために中継サーバーを経由します。</p>
+                    <div class="box">
+                        <p class="box-title"><i class="fa-solid fa-shield-halved" style="color:var(--accent);margin-right:.4rem;"></i>プライバシー</p>
+                        <p class="muted" style="font-size:.75rem;">ローカルから選択したファイルはすべてブラウザ内で処理され、サーバーに送信されません。URLから読み込む場合のみ、ファイル取得のために中継サーバーを経由します。</p>
                     </div>
                     <div>
-                        <p class="font-semibold text-slate-800 dark:text-slate-200 mb-2">キーボード操作</p>
-                        <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-xs">
-                            <dt class="font-mono text-slate-500 dark:text-slate-400">→ ↓ Space Enter</dt><dd>次のページ</dd>
-                            <dt class="font-mono text-slate-500 dark:text-slate-400">← ↑ Backspace</dt><dd>前のページ</dd>
-                            <dt class="font-mono text-slate-500 dark:text-slate-400">Esc</dt><dd>スライドショーを終了</dd>
-                            <dt class="font-mono text-slate-500 dark:text-slate-400">Ctrl + ホイール</dt><dd>拡大・縮小</dd>
+                        <p class="box-title" style="margin-bottom:.6rem;">キーボード操作</p>
+                        <dl class="kbd-grid">
+                            <dt>→ ↓ Space Enter</dt><dd>次のページ</dd>
+                            <dt>← ↑ Backspace</dt><dd>前のページ</dd>
+                            <dt>Esc</dt><dd>スライドショーを終了</dd>
+                            <dt>Ctrl + ホイール</dt><dd>拡大・縮小</dd>
                         </dl>
                     </div>
                 </div>
 
-                <div id="info-panel-license" class="hidden space-y-5">
+                <div id="info-panel-license" class="hidden" style="display:grid;gap:1.5rem;">
                     <div>
-                        <p class="font-semibold text-slate-800 dark:text-slate-200 mb-2">本アプリのライセンス</p>
-                        <p class="text-xs text-slate-600 dark:text-slate-400 mb-3">本アプリは MIT License のもとで公開されています。</p>
-                        <pre class="whitespace-pre-wrap text-xs leading-relaxed rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 p-4 text-slate-600 dark:text-slate-300 font-mono">MIT License
+                        <p class="box-title" style="margin-bottom:.5rem;">本アプリのライセンス</p>
+                        <p class="muted" style="font-size:.75rem;margin-bottom:.75rem;">本アプリは MIT License のもとで公開されています。</p>
+                        <pre class="box license-text">MIT License
 
 Copyright (c) 2026 PDF Slide Viewer
 
@@ -179,271 +392,190 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</pre>
                     </div>
                     <div>
-                        <p class="font-semibold text-slate-800 dark:text-slate-200 mb-1">使用しているオープンソースソフトウェア</p>
-                        <p class="text-xs text-slate-600 dark:text-slate-400">本アプリは、次のオープンソースソフトウェアを利用しています。各ライセンスの全文は、各プロジェクトのページをご確認ください。</p>
-                        <ul class="divide-y divide-slate-200 dark:divide-slate-700">
-                        <li class="py-3 flex items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <a href="https://github.com/mozilla/pdf.js" target="_blank" rel="noopener noreferrer" class="font-medium text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400">PDF.js</a>
-                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">PDFの描画エンジン</p>
-                            </div>
-                            <span class="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Apache-2.0</span>
-                        </li>
-                        <li class="py-3 flex items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <a href="https://github.com/ChristopherVR/pptx-viewer" target="_blank" rel="noopener noreferrer" class="font-medium text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400">pptx-vanilla-viewer</a>
-                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">PPTXの描画エンジン</p>
-                            </div>
-                            <span class="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">Apache-2.0</span>
-                        </li>
-                        <li class="py-3 flex items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <a href="https://github.com/Stuk/jszip" target="_blank" rel="noopener noreferrer" class="font-medium text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400">JSZip</a>
-                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">PPTXのリンク抽出</p>
-                            </div>
-                            <span class="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">MIT</span>
-                        </li>
-                        <li class="py-3 flex items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <a href="https://github.com/tailwindlabs/tailwindcss" target="_blank" rel="noopener noreferrer" class="font-medium text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400">Tailwind CSS</a>
-                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">スタイリング</p>
-                            </div>
-                            <span class="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">MIT</span>
-                        </li>
-                        <li class="py-3 flex items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <a href="https://fontawesome.com/license/free" target="_blank" rel="noopener noreferrer" class="font-medium text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400">Font Awesome Free</a>
-                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">アイコン（アイコン: CC BY 4.0 / フォント: SIL OFL 1.1 / コード: MIT）</p>
-                            </div>
-                            <span class="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">CC BY 4.0 ほか</span>
-                        </li>
-                        <li class="py-3 flex items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <a href="https://github.com/googlefonts/morisawa-biz-ud-gothic" target="_blank" rel="noopener noreferrer" class="font-medium text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400">BIZ UDPGothic</a>
-                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">表示フォント（Google Fonts経由）</p>
-                            </div>
-                            <span class="shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">SIL OFL 1.1</span>
-                        </li>
+                        <p class="box-title" style="margin-bottom:.35rem;">使用しているオープンソースソフトウェア</p>
+                        <p class="muted" style="font-size:.75rem;">本アプリは、次のオープンソースソフトウェアを利用しています。各ライセンスの全文は、各プロジェクトのページをご確認ください。</p>
+                        <ul>
+                            <li class="oss"><div><a href="https://github.com/mozilla/pdf.js" target="_blank" rel="noopener noreferrer">PDF.js</a><p>PDFの描画エンジン</p></div><span class="tag">Apache-2.0</span></li>
+                            <li class="oss"><div><a href="https://github.com/ChristopherVR/pptx-viewer" target="_blank" rel="noopener noreferrer">pptx-vanilla-viewer</a><p>PPTXの描画エンジン</p></div><span class="tag">Apache-2.0</span></li>
+                            <li class="oss"><div><a href="https://github.com/Stuk/jszip" target="_blank" rel="noopener noreferrer">JSZip</a><p>PPTXのリンク抽出</p></div><span class="tag">MIT</span></li>
+                            <li class="oss"><div><a href="https://github.com/tailwindlabs/tailwindcss" target="_blank" rel="noopener noreferrer">Tailwind CSS</a><p>スタイリング</p></div><span class="tag">MIT</span></li>
+                            <li class="oss"><div><a href="https://fontawesome.com/license/free" target="_blank" rel="noopener noreferrer">Font Awesome Free</a><p>アイコン（アイコン: CC BY 4.0 / フォント: SIL OFL 1.1 / コード: MIT）</p></div><span class="tag">CC BY 4.0 ほか</span></li>
+                            <li class="oss"><div><a href="https://github.com/googlefonts/morisawa-biz-ud-gothic" target="_blank" rel="noopener noreferrer">BIZ UDPGothic</a><p>表示フォント（Google Fonts経由）</p></div><span class="tag">SIL OFL 1.1</span></li>
+                            <li class="oss"><div><a href="https://fonts.google.com/specimen/Shippori+Mincho+B1" target="_blank" rel="noopener noreferrer">Shippori Mincho B1</a><p>見出しフォント（Google Fonts経由）</p></div><span class="tag">SIL OFL 1.1</span></li>
                         </ul>
                     </div>
                 </div>
             </div>
 
-            <div class="border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-6 py-4 flex justify-end shrink-0">
-                <button id="info-close-footer" class="px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition">閉じる</button>
+            <div class="dialog-foot">
+                <button id="info-close-footer" class="btn btn-ghost">閉じる</button>
             </div>
         </div>
     </div>
 
-    <div id="error-screen" class="hidden flex-1 flex flex-col justify-center items-center p-6 max-w-4xl mx-auto w-full">
-        <div class="text-center">
-            <div class="inline-flex p-4 bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 rounded-3xl mb-6">
-                <i class="fa-solid fa-circle-exclamation text-6xl"></i>
-            </div>
-            <h2 class="text-3xl font-bold text-slate-900 dark:text-white mb-3">ファイルの読み込みに失敗しました</h2>
-            <p class="text-slate-600 dark:text-slate-400 max-w-md mx-auto mb-8">
-                ファイルが破損しているか、対応していない形式の可能性があります。<br>別のPDFまたはPPTXファイルをお試しください。
-            </p>
-            <button id="btn-retry-upload" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-2xl flex items-center gap-3 mx-auto transition">
-                <i class="fa-solid fa-rotate"></i>
-                <span>別のファイルを選択する</span>
-            </button>
+    <div id="error-screen" class="hidden screen" style="display:flex;align-items:center;justify-content:center;padding:1.5rem;">
+        <div class="error-card">
+            <div class="error-icon"><i class="fa-solid fa-circle-exclamation"></i></div>
+            <h2>ファイルの読み込みに失敗しました</h2>
+            <p>ファイルが破損しているか、対応していない形式の可能性があります。<br>別のPDFまたはPPTXファイルをお試しください。</p>
+            <button id="btn-retry-upload" class="btn btn-ink"><i class="fa-solid fa-rotate"></i><span>別のファイルを選択する</span></button>
         </div>
     </div>
 
-    <div id="upload-screen" class="flex-1 overflow-y-auto transition-opacity duration-300">
-        <div class="flex flex-col justify-center items-center p-6 max-w-4xl mx-auto w-full min-h-full">
-        <div class="text-center mb-8">
-            <div class="inline-flex p-3 bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 rounded-2xl mb-4 shadow-sm">
-                <i class="fa-solid fa-file-pdf text-4xl"></i>
-            </div>
-            <h1 class="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight sm:text-4xl mb-3">
-                PDF Slide Viewer
-            </h1>
-            <p class="text-base text-slate-600 dark:text-slate-400 max-w-md mx-auto">
-                PDF・PowerPoint(pptx)ファイルをアップロードして、美しいスライド形式でプレゼンテーション。全画面スライドショー機能も搭載。
-            </p>
-        </div>
-
-        <div id="drop-zone" class="w-full bg-white dark:bg-slate-900 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-8 text-center hover:border-indigo-500 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-all cursor-pointer shadow-sm group">
-            <input type="file" id="pdf-input" accept=".pdf,.pptx" class="hidden" />
-            <div class="flex flex-col items-center">
-                <i class="fa-solid fa-cloud-arrow-up text-5xl text-slate-400 dark:text-slate-600 group-hover:text-indigo-500 transition-colors mb-4"></i>
-                <p class="text-base font-semibold text-slate-700 dark:text-slate-300 mb-1 group-hover:text-indigo-600 transition-colors">
-                    PDF・PPTXファイルをドラッグ＆ドロップ
-                </p>
-                <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">
-                    またはファイルを選択してください
-                </p>
-                <button type="button" onclick="document.getElementById('pdf-input').click()" class="px-5 py-2.5 bg-indigo-600 text-white font-medium text-sm rounded-lg shadow hover:bg-indigo-700 transition duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                    ファイルを選択
-                </button>
-            </div>
-        </div>
-
-        <div class="w-full mt-6">
-            <div class="flex items-center gap-3 mb-3">
-                <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
-                <span class="text-xs text-slate-400 dark:text-slate-500 font-medium">または</span>
-                <div class="flex-1 h-px bg-slate-200 dark:bg-slate-700"></div>
-            </div>
-            <div class="flex gap-2">
-                <input id="pdf-url-input" type="url" placeholder="PDF・PPTXのURLを入力..." class="flex-1 min-w-0 px-4 py-2.5 text-sm bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition" />
-                <button id="btn-load-url" class="flex-shrink-0 px-3 sm:px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs rounded-lg shadow transition whitespace-nowrap flex items-center gap-1.5">
-                    <i class="fa-solid fa-link"></i>
-                    <span class="hidden sm:inline">読み込む</span>
-                </button>
-            </div>
-        </div>
-
-        <p class="text-xs text-slate-400 dark:text-slate-500 mt-6 flex items-center">
-            <i class="fa-solid fa-shield-halved mr-1"></i>
-            PDF・PPTXファイルはすべてブラウザ上で処理され、サーバーにアップロードされることはありません。
-        </p>
-
-        <section class="w-full mt-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden">
-            <div class="px-5 py-3 border-b border-slate-200 dark:border-slate-700 flex items-center gap-2">
-                <i class="fa-solid fa-bell text-indigo-500"></i>
-                <h2 class="text-sm font-bold text-slate-900 dark:text-white">最新情報</h2>
-            </div>
-            <div class="p-5 space-y-6">
-                <article>
-                    <div class="flex flex-wrap items-center gap-2 mb-2">
-                        <time datetime="2026-11-19" class="text-xs text-slate-400 dark:text-slate-500">2026.11.19</time>
-                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">PPTX表示エンジンを刷新</span>
-                    </div>
-                    <p class="text-sm text-slate-600 dark:text-slate-400 mb-3">PowerPointの表示エンジンを pptx-vanilla-viewer に変更しました。これにより、次のような点が良くなります。</p>
-                    <ul class="space-y-2 text-sm text-slate-700 dark:text-slate-300">
-                        <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-500 mt-1 text-xs"></i><span>スライドをHTML/CSSで描画するため、拡大しても文字がくっきり表示されます。</span></li>
-                        <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-500 mt-1 text-xs"></i><span>グラフはSVGで描画され、SmartArt・表・図形など幅広い要素に対応しています。</span></li>
-                        <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-500 mt-1 text-xs"></i><span>テーマ・スライドマスター・レイアウトの継承やEMF/WMF画像にも対応し、PowerPointの見た目を再現しやすくなりました。</span></li>
-                        <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-500 mt-1 text-xs"></i><span>埋め込み動画・音声に対応しています（再生できる形式はブラウザに依存します）。</span></li>
-                        <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-500 mt-1 text-xs"></i><span>開発が活発で更新が頻繁なため、今後の改善や不具合修正を取り込みやすくなります。</span></li>
-                    </ul>
-                </article>
-                <article>
-                    <div class="flex flex-wrap items-center gap-2 mb-2">
-                        <time datetime="2026-11-19" class="text-xs text-slate-400 dark:text-slate-500">2026.11.19</time>
-                        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">ライブラリを更新</span>
-                    </div>
-                    <ul class="space-y-2 text-sm text-slate-700 dark:text-slate-300">
-                        <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-500 mt-1 text-xs"></i><span>PDFの描画エンジン pdf.js を 6.5.438 に更新</span></li>
-                        <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-500 mt-1 text-xs"></i><span>PPTXのリンク抽出に使う JSZip を 3.10.2 に更新</span></li>
-                        <li class="flex items-start gap-2"><i class="fa-solid fa-circle-check text-emerald-500 mt-1 text-xs"></i><span>アイコンに使う Font Awesome を 7.3.1 に更新</span></li>
-                    </ul>
-                </article>
-            </div>
-        </section>
-        <div class="w-full mt-6 mb-2 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs">
-            <button type="button" data-info-tab="about" class="info-open text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition flex items-center gap-1.5">
-                <i class="fa-solid fa-circle-info"></i><span>このアプリについて</span>
-            </button>
-            <button type="button" data-info-tab="license" class="info-open text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition flex items-center gap-1.5">
-                <i class="fa-brands fa-osi"></i><span>オープンソースライセンス</span>
-            </button>
-        </div>
-        </div>
-    </div>
-
-    <div id="viewer-screen" class="hidden flex-1 flex flex-col h-full min-h-0 overflow-hidden">
-        <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10 shrink-0 shadow-sm">
-            <div class="flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1 sm:max-w-[60%]">
-                <button id="btn-back-to-upload" class="p-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors shrink-0" title="ファイルを閉じる">
-                    <i class="fa-solid fa-xmark text-xl"></i>
-                </button>
-                <div class="min-w-0 flex-1">
-                    <h2 id="pdf-title" class="text-sm sm:text-lg font-bold text-slate-900 dark:text-white truncate">PDF Title</h2>
-                    <p id="pdf-subtitle" class="text-xs text-slate-500 dark:text-slate-400 hidden sm:block">読み込み完了</p>
+    <div id="upload-screen" class="screen scroll custom-scrollbar">
+        <div class="wrap">
+            <div class="topline">
+                <div class="brand"><span class="brand-mark"><i class="fa-solid fa-play"></i></span><span>PDF Slide Viewer</span></div>
+                <div class="topline-links">
+                    <button type="button" data-info-tab="about" class="info-open link-btn"><i class="fa-solid fa-circle-info"></i><span>このアプリについて</span></button>
                 </div>
             </div>
 
-            <div class="flex items-center space-x-2 sm:space-x-3 shrink-0">
-                <span class="hidden sm:inline-flex text-sm font-medium text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-lg whitespace-nowrap">
-                    <span id="current-page-num">1</span>&nbsp;/&nbsp;<span id="total-pages-num">--</span>&nbsp;ページ
-                </span>
+            <section class="hero">
+                <div>
+                    <span class="eyebrow">PDF ・ PPTX ・ ブラウザだけで完結</span>
+                    <h1>資料を、<br><em>そのまま</em>発表へ。</h1>
+                    <p class="lead">PDF・PowerPoint(pptx)ファイルをアップロードするだけで、スライド形式のビューアが立ち上がります。全画面スライドショー、発表者ツール、レーザーポインタも搭載。</p>
+                    <ul class="chips">
+                        <li><i class="fa-solid fa-expand"></i>全画面スライドショー</li>
+                        <li><i class="fa-solid fa-chalkboard-user"></i>発表者ツール</li>
+                        <li><i class="fa-solid fa-lightbulb"></i>レーザーポインタ</li>
+                        <li><i class="fa-solid fa-moon"></i>ダークモード</li>
+                    </ul>
+                </div>
 
-                <div class="flex items-stretch rounded-lg shadow-sm">
-                    <button id="btn-slideshow" class="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs sm:text-sm rounded-l-lg transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                        <i class="fa-solid fa-play text-xs sm:text-sm"></i>
-                        <span class="hidden sm:inline">スライドショー</span>
-                    </button>
-                    <button id="btn-slideshow-options" class="flex items-center px-2 sm:px-2.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs sm:text-sm rounded-r-lg border-l border-indigo-400/60 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" title="スライドショーの設定" aria-label="スライドショーの設定">
-                        <i class="fa-solid fa-chevron-down text-xs"></i>
-                    </button>
+                <div class="panel">
+                    <div id="drop-zone" class="dropzone">
+                        <input type="file" id="pdf-input" accept=".pdf,.pptx" class="hidden" />
+                        <div class="dropzone-icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
+                        <h2>PDF・PPTXファイルをドラッグ＆ドロップ</h2>
+                        <p>またはファイルを選択してください</p>
+                        <button type="button" onclick="document.getElementById('pdf-input').click()" class="btn btn-accent">ファイルを選択</button>
+                    </div>
+                    <div class="or"><span>または URL から読み込む</span></div>
+                    <div class="urlrow">
+                        <input id="pdf-url-input" type="url" placeholder="PDF・PPTXのURLを入力..." />
+                        <button id="btn-load-url" class="btn btn-ink"><i class="fa-solid fa-link"></i><span class="lbl">読み込む</span></button>
+                    </div>
+                    <p class="privacy"><i class="fa-solid fa-shield-halved"></i><span>PDF・PPTXファイルはすべてブラウザ上で処理され、サーバーにアップロードされることはありません。</span></p>
+                </div>
+            </section>
+
+            <section class="news">
+                <h2 class="news-title"><i class="fa-solid fa-bell"></i>最新情報</h2>
+                <div class="news-grid">
+                    <article class="news-card">
+                        <div class="news-meta">
+                            <time datetime="2026-11-19">2026.11.19</time>
+                            <span class="tag tag-accent">PPTX表示エンジンを刷新</span>
+                        </div>
+                        <p>PowerPointの表示エンジンを pptx-vanilla-viewer に変更しました。これにより、次のような点が良くなります。</p>
+                        <ul class="ticks">
+                            <li><i class="fa-solid fa-circle-check"></i><span>スライドをHTML/CSSで描画するため、拡大しても文字がくっきり表示されます。</span></li>
+                            <li><i class="fa-solid fa-circle-check"></i><span>グラフはSVGで描画され、SmartArt・表・図形など幅広い要素に対応しています。</span></li>
+                            <li><i class="fa-solid fa-circle-check"></i><span>テーマ・スライドマスター・レイアウトの継承やEMF/WMF画像にも対応し、PowerPointの見た目を再現しやすくなりました。</span></li>
+                            <li><i class="fa-solid fa-circle-check"></i><span>埋め込み動画・音声に対応しています（再生できる形式はブラウザに依存します）。</span></li>
+                            <li><i class="fa-solid fa-circle-check"></i><span>開発が活発で更新が頻繁なため、今後の改善や不具合修正を取り込みやすくなります。</span></li>
+                        </ul>
+                    </article>
+                    <article class="news-card">
+                        <div class="news-meta">
+                            <time datetime="2026-11-19">2026.11.19</time>
+                            <span class="tag">ライブラリを更新</span>
+                        </div>
+                        <ul class="ticks">
+                            <li><i class="fa-solid fa-circle-check"></i><span>PDFの描画エンジン pdf.js を 6.5.438 に更新</span></li>
+                            <li><i class="fa-solid fa-circle-check"></i><span>PPTXのリンク抽出に使う JSZip を 3.10.2 に更新</span></li>
+                            <li><i class="fa-solid fa-circle-check"></i><span>アイコンに使う Font Awesome を 7.3.1 に更新</span></li>
+                        </ul>
+                    </article>
+                </div>
+            </section>
+
+            <footer class="foot">
+                <span>© 2026 PDF Slide Viewer</span>
+                <div class="foot-links">
+                    <button type="button" data-info-tab="about" class="info-open link-btn"><i class="fa-solid fa-circle-info"></i><span>このアプリについて</span></button>
+                    <button type="button" data-info-tab="license" class="info-open link-btn"><i class="fa-brands fa-osi"></i><span>オープンソースライセンス</span></button>
+                </div>
+            </footer>
+        </div>
+    </div>
+
+    <div id="viewer-screen" class="hidden screen flex flex-col h-full min-h-0 overflow-hidden">
+        <header class="bar">
+            <div class="bar-left">
+                <button id="btn-back-to-upload" class="icon-btn" title="ファイルを閉じる"><i class="fa-solid fa-xmark" style="font-size:1.1rem;"></i></button>
+                <div style="min-width:0;flex:1;">
+                    <h2 id="pdf-title" class="bar-title">PDF Title</h2>
+                    <p id="pdf-subtitle" class="bar-sub">読み込み完了</p>
+                </div>
+            </div>
+            <div class="bar-right">
+                <span class="pager"><span id="current-page-num">1</span><span style="color:var(--muted);">/</span><span id="total-pages-num">--</span></span>
+                <div class="seg">
+                    <button id="btn-slideshow" class="btn btn-accent seg-main"><i class="fa-solid fa-play" style="font-size:.7rem;"></i><span class="lbl">スライドショー</span></button>
+                    <button id="btn-slideshow-options" class="btn btn-accent seg-opt" title="スライドショーの設定" aria-label="スライドショーの設定"><i class="fa-solid fa-chevron-down" style="font-size:.7rem;"></i></button>
                 </div>
             </div>
         </header>
 
-        <div class="flex-1 flex min-h-0 bg-slate-100 dark:bg-slate-950 overflow-hidden">
-            <aside class="hidden sm:flex w-64 bg-white dark:bg-slate-900 flex-col shrink-0 border-r border-slate-200 dark:border-slate-700 h-full">
-                <div class="p-3 border-b border-slate-200 dark:border-slate-700 shrink-0">
-                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">スライド一覧</span>
-                </div>
-                <div id="thumbnail-list" class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-white dark:bg-slate-900"></div>
+        <div class="flex-1 flex min-h-0 overflow-hidden">
+            <aside class="sidebar">
+                <div class="sidebar-head">スライド一覧</div>
+                <div id="thumbnail-list" class="custom-scrollbar" style="flex:1;overflow-y:auto;padding:1rem;"></div>
             </aside>
 
             <div id="thumbnail-list-sp" class="hidden"></div>
 
-            <div class="flex-1 flex flex-col min-h-0">
-                <main id="main-view-container" class="flex-1 py-2 px-0 sm:p-8 flex items-center justify-center custom-scrollbar overflow-hidden relative">
+            <div class="flex-1 flex flex-col min-h-0 min-w-0">
+                <main id="main-view-container" class="stage flex-1 py-2 px-0 sm:p-8 flex items-center justify-center custom-scrollbar overflow-hidden relative">
                     <div id="main-zoom-wrapper" style="display:flex;align-items:center;justify-content:center;transform-origin:center center;">
-                        <div id="main-canvas-wrapper" class="bg-white dark:bg-slate-900 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden relative">
+                        <div id="main-canvas-wrapper" class="frame">
                             <canvas id="main-canvas" class="max-w-full max-h-full block object-contain"></canvas>
                             <div id="main-pptx-host" style="display:none;position:relative;overflow:hidden;pointer-events:none;user-select:none;"></div>
                             <div id="main-link-overlay" class="link-overlay-container"></div>
                         </div>
                     </div>
-                    <div id="main-zoom-hint" class="absolute bottom-4 right-4 bg-black/50 text-white text-xs px-3 py-1.5 rounded-lg backdrop-blur-sm pointer-events-none opacity-0 transition-opacity duration-300 flex items-center gap-1.5">
+                    <div id="main-zoom-hint" class="hint">
                         <i class="fa-solid fa-magnifying-glass-plus"></i>
                         <span id="main-zoom-level">100%</span>
-                        <span class="text-white/60 hidden sm:inline">· ダブルクリックでリセット</span>
+                        <span class="lbl" style="opacity:.6;">· ダブルクリックでリセット</span>
                     </div>
                 </main>
 
-                <div class="sm:hidden shrink-0 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center justify-between gap-3">
-                    <button id="btn-prev-page" class="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium text-sm rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                        <i class="fa-solid fa-chevron-left"></i>
-                        <span>前へ</span>
-                    </button>
-                    <span class="text-sm text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">
-                        <span id="nav-current-page">1</span> / <span id="nav-total-pages">--</span> ページ
-                    </span>
-                    <button id="btn-next-page" class="flex items-center gap-2 px-5 py-2.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium text-sm rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-                        <span>次へ</span>
-                        <i class="fa-solid fa-chevron-right"></i>
-                    </button>
+                <div class="mnav">
+                    <button id="btn-prev-page" class="nav-btn" aria-label="前へ"><i class="fa-solid fa-chevron-left"></i></button>
+                    <span class="nav-count"><span id="nav-current-page">1</span> / <span id="nav-total-pages">--</span></span>
+                    <button id="btn-next-page" class="nav-btn" aria-label="次へ"><i class="fa-solid fa-chevron-right"></i></button>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="slideshow-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center">
-        <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full mx-4 overflow-hidden">
-            <div class="p-6">
-                <div class="flex items-center gap-3 mb-5">
-                    <i class="fa-solid fa-display text-indigo-500 text-2xl"></i>
-                    <h3 class="text-lg font-semibold text-slate-900 dark:text-white">スライドショーの設定</h3>
+    <div id="slideshow-modal" class="hidden overlay">
+        <div class="dialog" style="max-width:28rem;">
+            <div class="dialog-body">
+                <div class="dialog-head">
+                    <i class="fa-solid fa-display"></i>
+                    <h3>スライドショーの設定</h3>
                 </div>
-                <div class="mb-5">
-                    <p class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">スライドショーを表示するモニター</p>
-                    <div id="slideshow-screen-list" class="space-y-2"></div>
-                    <p id="slideshow-screen-note" class="hidden text-xs text-slate-500 dark:text-slate-400 leading-relaxed"></p>
+                <div style="margin-bottom:1.25rem;">
+                    <p style="font-size:.85rem;font-weight:700;margin-bottom:.6rem;">スライドショーを表示するモニター</p>
+                    <div id="slideshow-screen-list"></div>
+                    <p id="slideshow-screen-note" class="hidden muted" style="font-size:.75rem;line-height:1.7;"></p>
                 </div>
-                <label class="flex items-start gap-3 cursor-pointer">
-                    <input type="checkbox" id="slideshow-presenter-check" class="mt-0.5 w-4 h-4 accent-indigo-600">
-                    <span class="text-sm text-slate-700 dark:text-slate-300">
-                        <span class="font-medium">発表者ツールを使用する</span>
-                        <span class="block text-xs text-slate-500 dark:text-slate-400 mt-0.5">現在のスライド・次のスライド・タイマーを別ウィンドウに表示します</span>
+                <label class="check-row">
+                    <input type="checkbox" id="slideshow-presenter-check">
+                    <span>
+                        <span style="font-weight:700;">発表者ツールを使用する</span>
+                        <span class="muted" style="display:block;font-size:.75rem;margin-top:.15rem;">現在のスライド・次のスライド・タイマーを別ウィンドウに表示します</span>
                     </span>
                 </label>
             </div>
-            <div class="border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 px-6 py-4 flex justify-end gap-3">
-                <button id="slideshow-cancel" class="px-5 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition">
-                    キャンセル
-                </button>
-                <button id="slideshow-start" class="px-5 py-2.5 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition disabled:opacity-50">
-                    開始
-                </button>
+            <div class="dialog-foot">
+                <button id="slideshow-cancel" class="btn btn-ghost">キャンセル</button>
+                <button id="slideshow-start" class="btn btn-accent" style="min-width:5rem;">開始</button>
             </div>
         </div>
     </div>
@@ -459,44 +591,39 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
         <canvas id="laser-canvas" style="display:none;"></canvas>
 
-        <div id="fs-page-indicator" class="absolute bottom-6 left-6 bg-black/70 text-white px-4 py-2 rounded-lg text-sm font-medium backdrop-blur-sm pointer-events-auto flex items-center gap-3">
-            <span id="fs-current-page">1</span> / <span id="fs-total-pages">--</span> ページ
-
-            <button id="fs-menu-button" class="ml-2 p-1.5 hover:bg-white/20 rounded-lg transition-colors text-white/90 hover:text-white pointer-events-auto z-20">
-                <i class="fa-solid fa-ellipsis-vertical"></i>
-            </button>
+        <div id="fs-page-indicator" class="fs-pill">
+            <span><b id="fs-current-page">1</b> / <span id="fs-total-pages">--</span></span>
+            <button id="fs-menu-button" class="fs-dots" aria-label="メニュー"><i class="fa-solid fa-ellipsis-vertical"></i></button>
         </div>
 
-        <div id="fs-menu" class="hidden absolute bottom-20 left-6 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl py-1 w-56 text-white text-sm menu pointer-events-auto z-30">
-            <button id="laser-toggle" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-800 transition-colors text-left">
-                <i class="fa-solid fa-lightbulb w-4"></i>
+        <div id="fs-menu" class="hidden fs-menu menu">
+            <button id="laser-toggle" class="fs-item">
+                <i class="fa-solid fa-lightbulb"></i>
                 <span id="laser-text">レーザー ポインタをオンにする</span>
             </button>
-            <button id="presenter-toggle" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-800 transition-colors text-left">
-                <i class="fa-solid fa-chalkboard-user w-4"></i>
+            <button id="presenter-toggle" class="fs-item">
+                <i class="fa-solid fa-chalkboard-user"></i>
                 <span id="presenter-text">発表者ツールを開く</span>
             </button>
-            <button id="exit-fullscreen" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-800 transition-colors text-left">
+            <button id="exit-fullscreen" class="fs-item">
                 <i id="exit-fullscreen-icon" class="fa-solid fa-compress w-4"></i>
                 <span id="exit-fullscreen-text">全画面を終了</span>
             </button>
-            <button id="exit-slideshow" class="w-full px-4 py-3 flex items-center gap-3 hover:bg-slate-800 transition-colors text-left">
-                <i class="fa-solid fa-xmark w-4"></i>
+            <button id="exit-slideshow" class="fs-item">
+                <i class="fa-solid fa-xmark"></i>
                 <span>スライドショーを終了</span>
             </button>
         </div>
     </div>
 
-    <div id="loading-overlay" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex flex-col items-center justify-center text-white">
-        <div class="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent mb-4"></div>
-        <p class="text-lg font-semibold" id="loading-text">ファイルを処理中...</p>
-        <div id="loading-progress-wrap" class="hidden w-64 sm:w-80 mt-4">
-            <div class="h-2 w-full rounded-full bg-white/20 overflow-hidden">
-                <div id="loading-bar" class="h-full w-0 rounded-full bg-indigo-400 transition-[width] duration-150"></div>
-            </div>
-            <div class="flex justify-between gap-3 text-xs text-white/80 mt-2">
-                <span id="loading-detail" class="truncate"></span>
-                <span id="loading-percent" class="tabular-nums flex-shrink-0"></span>
+    <div id="loading-overlay" class="hidden loading">
+        <div class="spinner"></div>
+        <p id="loading-text" style="font-size:1.05rem;font-weight:700;">ファイルを処理中...</p>
+        <div id="loading-progress-wrap" class="hidden" style="width:min(20rem,70vw);margin-top:1rem;">
+            <div class="load-track"><div id="loading-bar" class="load-fill"></div></div>
+            <div style="display:flex;justify-content:space-between;gap:.75rem;margin-top:.5rem;font-size:.72rem;color:rgba(255,255,255,.75);">
+                <span id="loading-detail" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+                <span id="loading-percent" style="font-variant-numeric:tabular-nums;flex-shrink:0;"></span>
             </div>
         </div>
     </div>
@@ -1593,11 +1720,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             }
         });
 
-        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('border-indigo-500', 'bg-slate-50/80'); });
-        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-indigo-500', 'bg-slate-50/80'));
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('is-drag'); });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('is-drag'));
         dropZone.addEventListener('drop', e => {
             e.preventDefault();
-            dropZone.classList.remove('border-indigo-500', 'bg-slate-50/80');
+            dropZone.classList.remove('is-drag');
             if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
         });
 
@@ -1617,13 +1744,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         function showInfoTab(name) {
             infoTabs.forEach(tab => {
                 const active = tab.dataset.tab === name;
-                tab.classList.toggle('border-indigo-600', active);
-                tab.classList.toggle('text-indigo-600', active);
-                tab.classList.toggle('dark:text-indigo-400', active);
-                tab.classList.toggle('dark:border-indigo-400', active);
-                tab.classList.toggle('border-transparent', !active);
-                tab.classList.toggle('text-slate-500', !active);
-                tab.classList.toggle('dark:text-slate-400', !active);
+                tab.classList.toggle('active', active);
             });
             Object.entries(infoPanels).forEach(([key, el]) => el.classList.toggle('hidden', key !== name));
             infoScroll.scrollTop = 0;
@@ -1670,8 +1791,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         function updateSlideshowOptionsButton() {
             const ok = isPresenterSupported();
             btnSlideshowOptions.classList.toggle('hidden', !ok);
-            btnSlideshow.classList.toggle('rounded-l-lg', ok);
-            btnSlideshow.classList.toggle('rounded-lg', !ok);
+            btnSlideshow.classList.toggle('seg-solo', !ok);
         }
         updateSlideshowOptionsButton();
         window.addEventListener('resize', updateSlideshowOptionsButton);
@@ -2069,7 +2189,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             }
 
             pdfInput.value = '';
-            dropZone.classList.remove('border-indigo-500', 'bg-slate-50/80');
+            dropZone.classList.remove('is-drag');
 
             presentationContainer.classList.add('hidden');
             laserCanvas.style.display = 'none';
@@ -2117,15 +2237,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
         function createThumbnailPlaceholder(pageNum) {
             const wrapper = document.createElement('div');
             wrapper.id = `thumb-wrapper-${pageNum}`;
-            wrapper.className = `cursor-pointer flex flex-col items-center p-2 rounded-lg transition-all border border-transparent hover:bg-slate-100 dark:hover:bg-slate-800 group ${pageNum === 1 ? 'bg-slate-100 dark:bg-slate-800 border-indigo-500/50 ring-1 ring-indigo-500' : ''}`;
+            wrapper.className = pageNum === 1 ? 'thumb active' : 'thumb';
             wrapper.onclick = () => changePage(pageNum, false);
 
             const canvas = document.createElement('canvas');
             canvas.id = `thumb-canvas-${pageNum}`;
-            canvas.className = "w-full rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-md group-hover:scale-[1.02] transition-transform duration-200 block";
+            canvas.className = "thumb-canvas";
 
             const label = document.createElement('span');
-            label.className = "text-xs mt-1.5 text-slate-500 dark:text-slate-400 font-medium group-hover:text-slate-900 dark:group-hover:text-white transition-colors";
+            label.className = "thumb-n";
             label.textContent = pageNum;
 
             wrapper.append(canvas, label);
@@ -2248,12 +2368,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                 const wrapper = document.getElementById(`thumb-wrapper-${i}`);
                 if (!wrapper) continue;
                 if (i === activePageNum) {
-                    wrapper.classList.add('bg-slate-100', 'dark:bg-slate-800', 'border-indigo-500/50', 'ring-1', 'ring-indigo-500');
-                    wrapper.classList.remove('border-transparent');
+                    wrapper.classList.add('active');
                     wrapper.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 } else {
-                    wrapper.classList.remove('bg-slate-100', 'dark:bg-slate-800', 'border-indigo-500/50', 'ring-1', 'ring-indigo-500');
-                    wrapper.classList.add('border-transparent');
+                    wrapper.classList.remove('active');
                 }
             }
         }
@@ -2384,27 +2502,27 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             const defaultIndex = savedIndex >= 0 ? savedIndex : Math.max(0, screenList.findIndex(s => s !== current));
             screenList.forEach((s, i) => {
                 const row = document.createElement('label');
-                row.className = 'flex items-center gap-3 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer text-sm transition-colors';
+                row.className = 'screen-row';
 
                 const input = document.createElement('input');
                 input.type = 'radio';
                 input.name = 'slideshow-screen';
                 input.value = String(i);
                 input.checked = i === defaultIndex;
-                input.className = 'accent-indigo-600';
+                input.className = 'screen-radio';
 
                 const text = document.createElement('span');
                 text.className = 'flex-1 min-w-0';
 
                 const title = document.createElement('span');
-                title.className = 'block font-medium text-slate-800 dark:text-slate-200 truncate';
+                title.className = 'screen-title';
                 title.textContent = s.label || `モニター ${i + 1}`;
 
                 const tags = [];
                 if (s.isPrimary) tags.push('メイン');
                 if (s === current) tags.push('このウィンドウ');
                 const sub = document.createElement('span');
-                sub.className = 'block text-xs text-slate-500 dark:text-slate-400';
+                sub.className = 'screen-sub';
                 sub.textContent = `${s.width}×${s.height}` + (tags.length ? `　${tags.join('・')}` : '');
 
                 text.appendChild(title);
@@ -2454,7 +2572,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.min.css">
 <style>
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;background:#0b1120;color:#e2e8f0;font-family:"BIZ UDPGothic","Hiragino Sans","Yu Gothic",sans-serif;overflow:hidden}
+html,body{margin:0;height:100%;background:#14130f;color:#e2e8f0;font-family:"BIZ UDPGothic","Hiragino Sans","Yu Gothic",sans-serif;overflow:hidden}
 #p-root{display:flex;gap:16px;height:100%;padding:16px}
 #p-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px}
 #p-side{width:34%;min-width:260px;max-width:460px;display:flex;flex-direction:column;gap:12px;min-height:0}
@@ -2466,19 +2584,19 @@ html,body{margin:0;height:100%;background:#0b1120;color:#e2e8f0;font-family:"BIZ
 .p-host{display:none;position:relative;overflow:hidden;background:#fff}
 #p-next-end{display:none;position:absolute;top:0;right:0;bottom:0;left:0;align-items:center;justify-content:center;color:#94a3b8;font-size:14px;text-align:center;padding:12px}
 #p-info{display:flex;flex-direction:column;gap:8px}
-.p-stat{display:flex;align-items:center;gap:8px;background:#1e293b;border-radius:8px;padding:10px 12px}
+.p-stat{display:flex;align-items:center;gap:8px;background:#201f1b;border-radius:8px;padding:10px 12px}
 .p-stat span{font-size:12px;color:#94a3b8;min-width:64px}
 .p-stat strong{flex:1;font-size:22px;font-variant-numeric:tabular-nums}
 button i{margin-right:.5em}
 #p-prev i{margin:0 .5em 0 0}
 #p-next i{margin:0 0 0 .5em}
-button{font:inherit;color:inherit;border:0;border-radius:8px;padding:8px 12px;background:#334155;cursor:pointer}
-button:hover{background:#475569}
+button{font:inherit;color:inherit;border:0;border-radius:8px;padding:8px 12px;background:#35322c;cursor:pointer}
+button:hover{background:#4a463e}
 .p-small{font-size:12px;padding:6px 10px}
 #p-controls{display:flex;gap:8px}
-#p-controls button{flex:1;padding:14px;font-size:16px;font-weight:700;background:#4f46e5}
-#p-controls button:hover{background:#6366f1}
-#p-laser{background:#334155}
+#p-controls button{flex:1;padding:14px;font-size:16px;font-weight:700;background:#e5432a}
+#p-controls button:hover{background:#ff6b4a}
+#p-laser{background:#35322c}
 #p-laser.on{background:#b45309}
 #p-cur-box.laser{cursor:crosshair}
 #p-actions{margin-top:auto;display:flex;flex-direction:column;gap:12px}
