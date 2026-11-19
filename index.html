@@ -1162,19 +1162,21 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
             laserCtx.clearRect(0, 0, laserCanvas.width, laserCanvas.height);
 
-            const halo = laserCtx.createRadialGradient(x, y, 0, x, y, 48);
+            const k = Math.max(0.75, Math.min(2, Math.min(window.innerWidth / 1280, window.innerHeight / 720)));
+            const haloR = 48 * k;
+            const halo = laserCtx.createRadialGradient(x, y, 0, x, y, haloR);
             halo.addColorStop(0, 'rgba(255, 70, 90, 0.45)');
             halo.addColorStop(0.45, 'rgba(255, 70, 90, 0.3)');
             halo.addColorStop(0.75, 'rgba(255, 70, 90, 0.1)');
             halo.addColorStop(1, 'rgba(255, 70, 90, 0)');
             laserCtx.beginPath();
-            laserCtx.arc(x, y, 48, 0, Math.PI * 2);
+            laserCtx.arc(x, y, haloR, 0, Math.PI * 2);
             laserCtx.fillStyle = halo;
             laserCtx.fill();
 
             laserCtx.beginPath();
-            laserCtx.arc(x, y, 11.5, 0, Math.PI * 2);
-            laserCtx.lineWidth = 9;
+            laserCtx.arc(x, y, 11.5 * k, 0, Math.PI * 2);
+            laserCtx.lineWidth = 9 * k;
             laserCtx.strokeStyle = '#e60012';
             laserCtx.stroke();
         }
